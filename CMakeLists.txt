@@ -6,6 +6,8 @@ add_executable(
     
     wef #MACOSX_BUNDLE
     src/ESX_app.cpp
+    # src/vulakn_render_model.cpp
+    # src/matmul_compute.cpp
 
     dependencies/imgui/imgui.cpp
     dependencies/imgui/imgui_demo.cpp
