@@ -31,7 +31,7 @@ target_include_directories(
     
     PRIVATE
         include
-        dependencie/sglfw-3.4/include 
+        dependencies/glfw-3.4/include 
         dependencies/glfw-3.4/deps 
         dependencies/vulkan/macOS/include 
         dependencies/imgui

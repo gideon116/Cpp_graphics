@@ -243,5 +243,6 @@ static bool LoadImGuiImage(const char* filename, ImGuiLoadedImage& out)
     out.view = createImageView(out.image, VK_FORMAT_R8G8B8A8_SRGB);
     out.sampler = createSampler();
     out.descriptor = ImGui_ImplVulkan_AddTexture(out.sampler, out.view, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+    
     return true;
 }

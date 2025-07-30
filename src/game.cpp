@@ -9,6 +9,34 @@
 #include <algorithm>
 #include <random>
 
+class Layer
+{
+    public:
+    void make(ImDrawList* draw_list)
+    {
+        static ImVec2 box_pos   = ImVec2(200, 200);
+        static ImVec2 box_size  = ImVec2(150, 100);
+        ImU32 box_col  = IM_COL32(255, 100, 100, 200);
+
+        draw_list->AddRectFilled(box_pos, ImVec2(box_pos.x + box_size.x, box_pos.y + box_size.y), box_col);
+
+    
+        ImGui::SetCursorScreenPos(box_pos);
+        ImGui::InvisibleButton("drag_box", box_size);
+    
+        if (ImGui::IsItemActive() && ImGui::IsMouseDragging(ImGuiMouseButton_Left))
+        {
+            box_pos.x += ImGui::GetIO().MouseDelta.x;
+            box_pos.y += ImGui::GetIO().MouseDelta.y;
+        }
+
+        if (ImGui::IsItemHovered())
+            draw_list->AddRect(box_pos, ImVec2(box_pos.x + box_size.x, box_pos.y + box_size.y), IM_COL32(255,255,255,255), 0.0f, 0, 2.0f);
+    }
+
+};
+
+
 class Player
 {
     
@@ -19,20 +47,20 @@ class Player
         float o_x, o_y;
     public:
         Player(float x, float y, float s) : m_x(x), m_y(y), o_x(x), o_y(y), m_size(s) {}
+        
         void position(ImDrawList* draw_list, const ImVec2& display)
         {
-            float size = m_size * display.y;
-            draw_list->AddImage((ImTextureID)m_tex.descriptor, ImVec2(m_x - size, m_y - size), ImVec2(m_x + size, m_y + size));
+            float sizeX = m_size * display.x * 0.4;
+            float sizeY = m_size * display.y;
+            draw_list->AddImage((ImTextureID)m_tex.descriptor, ImVec2(m_x - sizeX, m_y - sizeY), ImVec2(m_x + sizeX, m_y + sizeY));
             // draw_list->AddRectFilled(ImVec2(m_x - size, m_y - size), ImVec2(m_x + size, m_y + size), IM_COL32(50, 150, 255, 255));
 
         }
 
-        void loadTex(const char* path="../resources/textures/viking_room.png")
+        void loadTex(const char* path="../resources/textures/texture.jpg")
         {
             LoadImGuiImage(path, m_tex);
         }
-        
-        
         
         void reset()
         {
@@ -44,14 +72,17 @@ class Player
         {
             m_x += (m_x < display.x - delta) ? delta : -display.x;
         }
+        
         void moveLeft(const ImVec2& display, const float& delta)
         {
             m_x -= (m_x > delta) ? delta : -display.x;
         }
+        
         void moveUp(const ImVec2& display, const float& delta)
         {
             m_y -= (m_y > delta) ? delta : -display.y;
         }
+        
         void moveDown(const ImVec2& display, const float& delta)
         {
             m_y += (m_y < display.y - delta) ? delta : -display.y;
@@ -85,7 +116,6 @@ int main(int, char**)
         ImGui_ImplVulkan_NewFrame();
         ImGui_ImplGlfw_NewFrame();
         ImGui::NewFrame();
-
     
         {
 
@@ -97,11 +127,8 @@ int main(int, char**)
                 ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoBackground | ImGuiWindowFlags_NoBringToFrontOnFocus);
 
             ImDrawList* draw_list = ImGui::GetWindowDrawList();
-            
             ImVec2 frac_xy1 = {0.01f, 0.01f};
-            
             ImVec2 size = ImVec2(frac_xy1.x * disp.x, frac_xy1.y * disp.y);
-            
             float delta = 100;
             
             bob.position(draw_list, disp);
@@ -133,10 +160,16 @@ int main(int, char**)
 
             }
             ImGui::PopStyleColor(3);
-            ImGui::End();
 
-        }
+            Layer l;
+            l.make(draw_list);
+            
+            
+            
         
+            ImGui::End();
+        }
+
 
         // Rendering
         ImGui::Render();
