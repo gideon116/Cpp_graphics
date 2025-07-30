@@ -5,7 +5,7 @@ add_subdirectory(dependencies/glfw-3.4)
 add_executable(
     
     wef #MACOSX_BUNDLE
-    src/ESX_app.cpp
+    src/game.cpp
     # src/vulakn_render_model.cpp
     # src/matmul_compute.cpp
 
