@@ -8,31 +8,74 @@
 #include <unordered_map>
 #include <algorithm>
 #include <random>
+#include <iostream>
 
+constexpr int w = 10;
 class Layer
 {
     public:
-    void make(ImDrawList* draw_list)
-    {
-        static ImVec2 box_pos   = ImVec2(200, 200);
-        static ImVec2 box_size  = ImVec2(150, 100);
-        ImU32 box_col  = IM_COL32(255, 100, 100, 200);
+        
+        ImVec2 m_box_size = ImVec2(75, 75);
+        ImU32 m_box_col = IM_COL32(255, 100, 100, 200);
+        ImVec2 m_box_pos_queue[w];
 
-        draw_list->AddRectFilled(box_pos, ImVec2(box_pos.x + box_size.x, box_pos.y + box_size.y), box_col);
+        void reset()  { for (int i = 0; i < w; i++) m_box_pos_queue[i] = ImVec2(200, 200); }
 
-    
-        ImGui::SetCursorScreenPos(box_pos);
-        ImGui::InvisibleButton("drag_box", box_size);
-    
-        if (ImGui::IsItemActive() && ImGui::IsMouseDragging(ImGuiMouseButton_Left))
+        Layer()
+        { for (int i = 0; i < w; i++) m_box_pos_queue[i] = ImVec2(200, 200); }
+
+        
+
+        void make(ImDrawList* draw_list)
         {
-            box_pos.x += ImGui::GetIO().MouseDelta.x;
-            box_pos.y += ImGui::GetIO().MouseDelta.y;
-        }
+            // render frame
+            // for (int i = 0; i < 15; i++) draw_list->AddLine(ImVec2(i*100, 0), ImVec2(i*100, 800), m_box_col);
+            draw_list->AddRectFilled(ImVec2(875, 0), ImVec2(900, 800), IM_COL32(100, 100, 100, 200));
 
-        if (ImGui::IsItemHovered())
-            draw_list->AddRect(box_pos, ImVec2(box_pos.x + box_size.x, box_pos.y + box_size.y), IM_COL32(255,255,255,255), 0.0f, 0, 2.0f);
-    }
+            draw_list->AddRectFilled(m_box_pos_queue[w-1], ImVec2(m_box_pos_queue[w-1].x + m_box_size.x, m_box_pos_queue[w-1].y + m_box_size.y), m_box_col);
+            ImGui::SetCursorScreenPos(m_box_pos_queue[w-1]);
+            ImGui::InvisibleButton("drag_box", m_box_size);
+
+            for (int i = 0; i < w-1; i++)
+            {
+                m_box_pos_queue[i] = m_box_pos_queue[i + 1];
+            }
+
+            // is being dragged
+            if (ImGui::IsItemActive() && ImGui::IsMouseDragging(ImGuiMouseButton_Left))
+            {
+                ImVec2 temp;
+                temp.x = m_box_pos_queue[w-1].x + ImGui::GetIO().MouseDelta.x;
+                temp.y = m_box_pos_queue[w-1].y + ImGui::GetIO().MouseDelta.y;
+                
+                
+                m_box_pos_queue[w-1] = temp;
+                
+            }
+            else
+            {
+                ImVec2 temp;
+                if (m_box_pos_queue[w-1].x >= 800)
+                    temp.x = 800;
+                else
+                    // temp.x = m_box_pos_queue[w-1].x + (m_box_pos_queue[w-1].x - m_box_pos_queue[0].x)/9.5;
+                    temp.x = m_box_pos_queue[w-1].x + 67;
+                temp.y = m_box_pos_queue[w-1].y + (m_box_pos_queue[w-1].y - m_box_pos_queue[0].y)/9.5;
+
+                
+
+                
+                m_box_pos_queue[w-1] = temp;
+            }
+
+            
+
+
+
+            // hilight hover
+            // if (ImGui::IsItemHovered())
+            //     draw_list->AddRect(m_box_pos, ImVec2(m_box_pos.x + m_box_size.x, m_box_pos.y + m_box_size.y), IM_COL32(255,255,255,255), 0.0f, 0, 2.0f);
+        }
 
 };
 
@@ -109,6 +152,7 @@ int main(int, char**)
     ImVec2 disp = ImGui::GetIO().DisplaySize;
     Player bob(100.0, 100.0, 0.05);
     bob.loadTex();
+    Layer l;
 
     while (!glfwWindowShouldClose(window))
     {
@@ -157,11 +201,11 @@ int main(int, char**)
             if (ImGui::Button("Reset Position", size))
             {
                 bob.reset();
-
+                l.reset();
             }
             ImGui::PopStyleColor(3);
 
-            Layer l;
+            
             l.make(draw_list);
             
             

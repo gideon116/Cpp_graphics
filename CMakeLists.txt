@@ -5,9 +5,17 @@ add_subdirectory(dependencies/glfw-3.4)
 add_executable(
     
     wef #MACOSX_BUNDLE
-    src/game.cpp
-    # src/vulakn_render_model.cpp
+    # src/game.cpp
+    # src/vulkan_render_model.cpp
     # src/matmul_compute.cpp
+    src/example.cpp
+    ../learnn/src/useGPU.cpp
+    ../learnn/src/layers_multithreaded.cpp
+    ../learnn/src/layers.cpp
+    ../learnn/src/matrix_operations.cpp
+    ../learnn/src/tensor.cpp
+    ../learnn/src/model.cpp
+    ../learnn/src/layers_gpu.cpp
 
     dependencies/imgui/imgui.cpp
     dependencies/imgui/imgui_demo.cpp
@@ -36,4 +44,6 @@ target_include_directories(
         dependencies/vulkan/macOS/include 
         dependencies/imgui
         dependencies/texture_loaders
+
+        ../learnn/include
     )

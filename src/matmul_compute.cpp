@@ -21,7 +21,7 @@ int main() {
         29, 30, 31, 32
     };
 
-    MakeVulkan comp(m_matA, m_matB, sizeof(m_matA), sizeof(m_matB));
+    MakeVulkan comp(m_matA, m_matB, sizeof(m_matA), sizeof(m_matB), sizeof(m_matA));
 
     try { comp.run(); }
     catch (const std::exception& e) { std::cerr << e.what() << std::endl; }

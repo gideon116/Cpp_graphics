@@ -1,45 +1,98 @@
 #include <vulkan/vulkan.h>
 #include <iostream>
 #include <vector>
+#include <memory>
 #include <stdexcept>
 #include <fstream>
 #include <cstring>
+#include <cstdint>
 
+constexpr bool verbose = true;
+
+// ----------------------------------------------
+// Helpers
+// ----------------------------------------------
+static std::vector<char> readFile(const char* filename) {
+    std::ifstream f(filename, std::ios::ate | std::ios::binary);
+    if (!f.is_open()) throw std::runtime_error("failed to open file");
+    size_t sz = (size_t)f.tellg();
+    std::vector<char> buf(sz);
+    f.seekg(0);
+    f.read(buf.data(), sz);
+    return buf;
+}
+static uint32_t ceilDiv(uint32_t a, uint32_t b) { return (a + b - 1) / b; }
+
+// ----------------------------------------------
+// MakeVulkan (compute-only)
+// ----------------------------------------------
 class MakeVulkan {
 public:
-    MakeVulkan(float* a, float* b, size_t a_size, size_t b_size) : m_matA(a), m_matB(b), m_A_size(a_size), m_B_size(b_size) {}
-    void run();
-public:
+    MakeVulkan(float* a, float* b, size_t a_size, size_t b_size, size_t c_size)
+        : m_matA(a), m_matB(b), m_A_size(a_size), m_B_size(b_size), m_C_size(c_size) {}
+
+    // Matrix sizes (row-major):
+    // A: MxN, B: NxP, C: MxP
+    uint32_t mM = 4, mN = 4, mP = 4;
+
+    // Workgroup size: must match the shader's local_size_x/y
+    uint32_t Lx = 16, Ly = 16;
+
+    // Output
     std::unique_ptr<float[]> m_result;
+
+    // API
+    void run();
+
+    // Inputs (host)
     float* m_matA;
     float* m_matB;
-    size_t m_A_size;
-    size_t m_B_size;
+    size_t m_A_size, m_B_size, m_C_size;
 
 private:
+    // Vulkan bootstrapping
     void initVulkan();
+    void cleanup();
     void createInstance();
     void pickPhysicalDevice();
     void createDevice();
-    void createBuffer(VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags properties, VkBuffer& buffer, VkDeviceMemory& memory);
-    uint32_t findMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags properties);
     void createDescriptorSetLayout();
     void createPipeline();
     void createCommandPool();
     void createCommandBuffer();
-    void runCommandBuffer();
-    void cleanup();
 
+    // Work submission
+    void runCommandBuffer();
+
+    // Resources
+    void createBuffer(VkDeviceSize size, VkBufferUsageFlags usage,
+                      VkMemoryPropertyFlags props, VkBuffer& buffer, VkDeviceMemory& memory);
+    uint32_t findMemoryType(uint32_t typeBits, VkMemoryPropertyFlags props);
+
+    // Device-local + staging helpers
+    void createDeviceLocalBuffer(VkDeviceSize size, VkBufferUsageFlags usage,
+                                 VkBuffer& buf, VkDeviceMemory& mem);
+    VkCommandBuffer beginOneShot();
+    void endOneShot(VkCommandBuffer cmd);
+    void uploadWithStaging(const void* src, VkDeviceSize bytes, VkBuffer dstDeviceLocal);
+    void downloadWithStaging(VkBuffer srcDeviceLocal, VkDeviceSize bytes, void* dst);
+
+private:
     VkInstance m_instance{};
     VkPhysicalDevice m_physicalDevice{VK_NULL_HANDLE};
     VkDevice m_device{};
     VkQueue m_queue{};
+    uint32_t m_queueFamilyIndex{0};
+
     VkDescriptorSetLayout m_descriptorSetLayout{};
     VkPipelineLayout m_pipelineLayout{};
     VkPipeline m_pipeline{};
+
     VkCommandPool m_commandPool{};
     VkCommandBuffer m_commandBuffer{};
+    VkFence m_fence{};
 
+    // Device-local buffers
     VkBuffer m_bufferA{};
     VkDeviceMemory m_memoryA{};
     VkBuffer m_bufferB{};
@@ -48,280 +101,352 @@ private:
     VkDeviceMemory m_memoryC{};
 };
 
-static std::vector<char> readFile(const char* filename) {
-    std::ifstream file(filename, std::ios::ate | std::ios::binary);
-    if (!file.is_open())
-        throw std::runtime_error("failed to open file");
-    size_t fileSize = (size_t) file.tellg();
-    std::vector<char> buffer(fileSize);
-    file.seekg(0);
-    file.read(buffer.data(), fileSize);
-    return buffer;
-}
-
+// ----------------------------------------------
+// Implementation
+// ----------------------------------------------
 void MakeVulkan::createInstance() {
+    VkApplicationInfo app{VK_STRUCTURE_TYPE_APPLICATION_INFO};
+    app.pApplicationName = "cpp_ml";
+    app.applicationVersion = VK_MAKE_VERSION(1,0,0);
+    app.pEngineName = "NoEngine";
+    app.engineVersion = VK_MAKE_VERSION(1,0,0);
+    app.apiVersion = VK_API_VERSION_1_1;
 
-    
-    VkApplicationInfo appInfo{};
-    appInfo.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
-    appInfo.pApplicationName = "MatrixMultiply";
-    appInfo.applicationVersion = VK_MAKE_VERSION(1, 0, 0);
-    appInfo.pEngineName = "NoEngine";
-    appInfo.engineVersion = VK_MAKE_VERSION(1, 0, 0);
-    appInfo.apiVersion = VK_API_VERSION_1_1;
+    // MoltenVK / macOS: portability enumeration
+    const char* instExts[] = {
+        VK_KHR_PORTABILITY_ENUMERATION_EXTENSION_NAME,
+        "VK_KHR_portability_enumeration",
+        "VK_KHR_get_physical_device_properties2",
+    };
 
-    VkInstanceCreateInfo createInfo{};
-    createInfo.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
-    createInfo.pApplicationInfo = &appInfo;
-    
-    uint32_t glfwExtensionCount = 0;
+    VkInstanceCreateInfo ci{VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO};
+    ci.pApplicationInfo = &app;
+    ci.flags |= VK_INSTANCE_CREATE_ENUMERATE_PORTABILITY_BIT_KHR;
+    ci.enabledExtensionCount = (uint32_t)(sizeof(instExts)/sizeof(instExts[0]));
+    ci.ppEnabledExtensionNames = instExts;
 
-    // macOS stuff
-    createInfo.flags |= VK_INSTANCE_CREATE_ENUMERATE_PORTABILITY_BIT_KHR;
-    const char** new_glfwExtensions = new const char*[glfwExtensionCount + 3];
-
-    new_glfwExtensions[glfwExtensionCount++] = VK_KHR_PORTABILITY_ENUMERATION_EXTENSION_NAME;
-    new_glfwExtensions[glfwExtensionCount++] = "VK_KHR_portability_enumeration";
-    new_glfwExtensions[glfwExtensionCount++] = "VK_KHR_get_physical_device_properties2";
-
-    // back to main...
-    createInfo.enabledExtensionCount = glfwExtensionCount;
-    createInfo.ppEnabledExtensionNames = new_glfwExtensions;
-            
-
-    if (vkCreateInstance(&createInfo, nullptr, &m_instance) != VK_SUCCESS)
-        throw std::runtime_error("failed to create instance");
+    if (vkCreateInstance(&ci, nullptr, &m_instance) != VK_SUCCESS)
+        throw std::runtime_error("vkCreateInstance failed");
 }
 
 void MakeVulkan::pickPhysicalDevice() {
-    uint32_t deviceCount = 0;
-    vkEnumeratePhysicalDevices(m_instance, &deviceCount, nullptr);
-    if (deviceCount == 0)
-        throw std::runtime_error("failed to find GPUs");
-    std::vector<VkPhysicalDevice> devices(deviceCount);
-    vkEnumeratePhysicalDevices(m_instance, &deviceCount, devices.data());
-    m_physicalDevice = devices[0];
+    uint32_t n = 0;
+    vkEnumeratePhysicalDevices(m_instance, &n, nullptr);
+    if (!n) throw std::runtime_error("no Vulkan devices");
+    std::vector<VkPhysicalDevice> devs(n);
+    vkEnumeratePhysicalDevices(m_instance, &n, devs.data());
+
+    for (auto d : devs) {
+        uint32_t qCount = 0;
+        vkGetPhysicalDeviceQueueFamilyProperties(d, &qCount, nullptr);
+        std::vector<VkQueueFamilyProperties> qprops(qCount);
+        vkGetPhysicalDeviceQueueFamilyProperties(d, &qCount, qprops.data());
+        for (uint32_t i = 0; i < qCount; ++i) {
+            if (qprops[i].queueFlags & VK_QUEUE_COMPUTE_BIT) {
+                m_physicalDevice = d;
+                m_queueFamilyIndex = i;
+                if (verbose) {
+                    VkPhysicalDeviceProperties props{};
+                    vkGetPhysicalDeviceProperties(d, &props);
+                    std::cout << "[INFO] Using GPU: " << props.deviceName
+                              << " (compute queue family " << i << ")\n";
+                }
+                return;
+            }
+        }
+    }
+    throw std::runtime_error("no compute-capable queue found");
 }
 
 void MakeVulkan::createDevice() {
-    float queuePriority = 1.0f;
-    uint32_t queueFamilyIndex = 0;
-    uint32_t queueFamilyCount;
-    vkGetPhysicalDeviceQueueFamilyProperties(m_physicalDevice, &queueFamilyCount, nullptr);
-    std::vector<VkQueueFamilyProperties> props(queueFamilyCount);
-    vkGetPhysicalDeviceQueueFamilyProperties(m_physicalDevice, &queueFamilyCount, props.data());
-    for (uint32_t i = 0; i < queueFamilyCount; ++i) {
-        if (props[i].queueFlags & VK_QUEUE_COMPUTE_BIT) {
-            queueFamilyIndex = i;
-            break;
+    float prio = 1.0f;
+    VkDeviceQueueCreateInfo q{VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO};
+    q.queueFamilyIndex = m_queueFamilyIndex;
+    q.queueCount = 1;
+    q.pQueuePriorities = &prio;
+
+    // On macOS, many drivers expose VK_KHR_portability_subset as a *device* extension.
+    // Enable it if available (won’t hurt elsewhere).
+    uint32_t extCount = 0;
+    vkEnumerateDeviceExtensionProperties(m_physicalDevice, nullptr, &extCount, nullptr);
+    std::vector<VkExtensionProperties> exts(extCount);
+    vkEnumerateDeviceExtensionProperties(m_physicalDevice, nullptr, &extCount, exts.data());
+    std::vector<const char*> devExts;
+    for (auto& e : exts) {
+        if (std::strcmp(e.extensionName, "VK_KHR_portability_subset") == 0) {
+            devExts.push_back("VK_KHR_portability_subset");
         }
     }
 
-    VkDeviceQueueCreateInfo queueCreateInfo{};
-    queueCreateInfo.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
-    queueCreateInfo.queueFamilyIndex = queueFamilyIndex;
-    queueCreateInfo.queueCount = 1;
-    queueCreateInfo.pQueuePriorities = &queuePriority;
+    VkDeviceCreateInfo ci{VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO};
+    ci.queueCreateInfoCount = 1;
+    ci.pQueueCreateInfos = &q;
+    ci.enabledExtensionCount = (uint32_t)devExts.size();
+    ci.ppEnabledExtensionNames = devExts.empty() ? nullptr : devExts.data();
 
-    VkDeviceCreateInfo createInfo{};
-    createInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
-    createInfo.queueCreateInfoCount = 1;
-    createInfo.pQueueCreateInfos = &queueCreateInfo;
+    if (vkCreateDevice(m_physicalDevice, &ci, nullptr, &m_device) != VK_SUCCESS)
+        throw std::runtime_error("vkCreateDevice failed");
 
-    if (vkCreateDevice(m_physicalDevice, &createInfo, nullptr, &m_device) != VK_SUCCESS)
-        throw std::runtime_error("failed to create device");
-    vkGetDeviceQueue(m_device, queueFamilyIndex, 0, &m_queue);
+    vkGetDeviceQueue(m_device, m_queueFamilyIndex, 0, &m_queue);
 }
 
-uint32_t MakeVulkan::findMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags properties) {
-    VkPhysicalDeviceMemoryProperties memProperties;
-    vkGetPhysicalDeviceMemoryProperties(m_physicalDevice, &memProperties);
-    for (uint32_t i = 0; i < memProperties.memoryTypeCount; i++) {
-        if ((typeFilter & (1 << i)) && (memProperties.memoryTypes[i].propertyFlags & properties) == properties)
+uint32_t MakeVulkan::findMemoryType(uint32_t typeBits, VkMemoryPropertyFlags props) {
+    VkPhysicalDeviceMemoryProperties mp{};
+    vkGetPhysicalDeviceMemoryProperties(m_physicalDevice, &mp);
+    for (uint32_t i = 0; i < mp.memoryTypeCount; ++i) {
+        if ((typeBits & (1u << i)) &&
+            (mp.memoryTypes[i].propertyFlags & props) == props)
             return i;
     }
-    throw std::runtime_error("failed to find suitable memory type");
+    throw std::runtime_error("no suitable memory type");
 }
 
-void MakeVulkan::createBuffer(VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags properties,
+void MakeVulkan::createBuffer(VkDeviceSize size, VkBufferUsageFlags usage,
+                              VkMemoryPropertyFlags props,
                               VkBuffer& buffer, VkDeviceMemory& memory) {
-    VkBufferCreateInfo bufferInfo{};
-    bufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
-    bufferInfo.size = size;
-    bufferInfo.usage = usage;
-    bufferInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
-    if (vkCreateBuffer(m_device, &bufferInfo, nullptr, &buffer) != VK_SUCCESS)
-        throw std::runtime_error("failed to create buffer");
-    VkMemoryRequirements memRequirements;
-    vkGetBufferMemoryRequirements(m_device, buffer, &memRequirements);
+    VkBufferCreateInfo bi{VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO};
+    bi.size = size;
+    bi.usage = usage;
+    bi.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+    if (vkCreateBuffer(m_device, &bi, nullptr, &buffer) != VK_SUCCESS)
+        throw std::runtime_error("vkCreateBuffer failed");
 
-    VkMemoryAllocateInfo allocInfo{};
-    allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
-    allocInfo.allocationSize = memRequirements.size;
-    allocInfo.memoryTypeIndex = findMemoryType(memRequirements.memoryTypeBits, properties);
+    VkMemoryRequirements req{};
+    vkGetBufferMemoryRequirements(m_device, buffer, &req);
 
-    if (vkAllocateMemory(m_device, &allocInfo, nullptr, &memory) != VK_SUCCESS)
-        throw std::runtime_error("failed to allocate buffer memory");
+    VkMemoryAllocateInfo ai{VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO};
+    ai.allocationSize = req.size;
+    ai.memoryTypeIndex = findMemoryType(req.memoryTypeBits, props);
+
+    if (vkAllocateMemory(m_device, &ai, nullptr, &memory) != VK_SUCCESS)
+        throw std::runtime_error("vkAllocateMemory failed");
+
     vkBindBufferMemory(m_device, buffer, memory, 0);
 }
 
+void MakeVulkan::createDeviceLocalBuffer(VkDeviceSize size, VkBufferUsageFlags usage,
+                                         VkBuffer& buf, VkDeviceMemory& mem) {
+    createBuffer(size,
+        usage | VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+        VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, buf, mem);
+}
+
+VkCommandBuffer MakeVulkan::beginOneShot() {
+    VkCommandBufferAllocateInfo a{VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO};
+    a.commandPool = m_commandPool;
+    a.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+    a.commandBufferCount = 1;
+    VkCommandBuffer cmd{};
+    if (vkAllocateCommandBuffers(m_device, &a, &cmd) != VK_SUCCESS)
+        throw std::runtime_error("vkAllocateCommandBuffers failed");
+
+    VkCommandBufferBeginInfo b{VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO};
+    b.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
+    if (vkBeginCommandBuffer(cmd, &b) != VK_SUCCESS)
+        throw std::runtime_error("vkBeginCommandBuffer failed");
+    return cmd;
+}
+
+void MakeVulkan::endOneShot(VkCommandBuffer cmd) {
+    vkEndCommandBuffer(cmd);
+    VkSubmitInfo s{VK_STRUCTURE_TYPE_SUBMIT_INFO};
+    s.commandBufferCount = 1;
+    s.pCommandBuffers = &cmd;
+    vkQueueSubmit(m_queue, 1, &s, VK_NULL_HANDLE);
+    vkQueueWaitIdle(m_queue);
+    vkFreeCommandBuffers(m_device, m_commandPool, 1, &cmd);
+}
+
+void MakeVulkan::uploadWithStaging(const void* src, VkDeviceSize bytes, VkBuffer dstDeviceLocal) {
+    VkBuffer staging{};
+    VkDeviceMemory stagingMem{};
+    createBuffer(bytes, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+                 VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+                 staging, stagingMem);
+
+    void* map = nullptr;
+    vkMapMemory(m_device, stagingMem, 0, bytes, 0, &map);
+    std::memcpy(map, src, (size_t)bytes);
+    vkUnmapMemory(m_device, stagingMem);
+
+    VkCommandBuffer cmd = beginOneShot();
+    VkBufferCopy copy{0, 0, bytes};
+    vkCmdCopyBuffer(cmd, staging, dstDeviceLocal, 1, &copy);
+    endOneShot(cmd);
+
+    vkDestroyBuffer(m_device, staging, nullptr);
+    vkFreeMemory(m_device, stagingMem, nullptr);
+}
+
+void MakeVulkan::downloadWithStaging(VkBuffer srcDeviceLocal, VkDeviceSize bytes, void* dst) {
+    VkBuffer staging{};
+    VkDeviceMemory stagingMem{};
+    createBuffer(bytes, VK_BUFFER_USAGE_TRANSFER_DST_BIT,
+                 VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+                 staging, stagingMem);
+
+    VkCommandBuffer cmd = beginOneShot();
+    VkBufferCopy copy{0, 0, bytes};
+    vkCmdCopyBuffer(cmd, srcDeviceLocal, staging, 1, &copy);
+    endOneShot(cmd);
+
+    void* map = nullptr;
+    vkMapMemory(m_device, stagingMem, 0, bytes, 0, &map);
+    std::memcpy(dst, map, (size_t)bytes);
+    vkUnmapMemory(m_device, stagingMem);
+
+    vkDestroyBuffer(m_device, staging, nullptr);
+    vkFreeMemory(m_device, stagingMem, nullptr);
+}
+
 void MakeVulkan::createDescriptorSetLayout() {
-    VkDescriptorSetLayoutBinding layoutBindings[3]{};
-    for (int i = 0; i < 3; ++i) {
-        layoutBindings[i].binding = i;
-        layoutBindings[i].descriptorCount = 1;
-        layoutBindings[i].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-        layoutBindings[i].stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
+    // binding 0: A, 1: B, 2: C (all storage buffers)
+    VkDescriptorSetLayoutBinding b[3]{};
+    for (uint32_t i = 0; i < 3; ++i) {
+        b[i].binding = i;
+        b[i].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+        b[i].descriptorCount = 1;
+        b[i].stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
     }
-    VkDescriptorSetLayoutCreateInfo layoutInfo{};
-    layoutInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
-    layoutInfo.bindingCount = 3;
-    layoutInfo.pBindings = layoutBindings;
-    if (vkCreateDescriptorSetLayout(m_device, &layoutInfo, nullptr, &m_descriptorSetLayout) != VK_SUCCESS)
-        throw std::runtime_error("failed to create descriptor set layout");
+    VkDescriptorSetLayoutCreateInfo ci{VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO};
+    ci.bindingCount = 3;
+    ci.pBindings = b;
+    if (vkCreateDescriptorSetLayout(m_device, &ci, nullptr, &m_descriptorSetLayout) != VK_SUCCESS)
+        throw std::runtime_error("vkCreateDescriptorSetLayout failed");
+}
+
+VkShaderModule makeModule(VkDevice dev, const char* path) {
+    auto code = readFile(path);
+    VkShaderModuleCreateInfo mi{VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO};
+    mi.codeSize = code.size();
+    mi.pCode = reinterpret_cast<const uint32_t*>(code.data());
+    VkShaderModule mod{};
+    if (vkCreateShaderModule(dev, &mi, nullptr, &mod) != VK_SUCCESS)
+        throw std::runtime_error("vkCreateShaderModule failed");
+    return mod;
 }
 
 void MakeVulkan::createPipeline() {
-    auto shaderCode = readFile("../resources/shaders/comp.spv");
-    VkShaderModuleCreateInfo moduleInfo{};
-    moduleInfo.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
-    moduleInfo.codeSize = shaderCode.size();
-    moduleInfo.pCode = reinterpret_cast<const uint32_t*>(shaderCode.data());
-    VkShaderModule shaderModule;
-    if (vkCreateShaderModule(m_device, &moduleInfo, nullptr, &shaderModule) != VK_SUCCESS)
-        throw std::runtime_error("failed to create shader module");
+    // expects comp.spv with local_size_x=Lx, local_size_y=Ly and push constants {uint M,N,P}
+    VkShaderModule cs = makeModule(m_device, "../resources/shaders/comp.spv");
 
-    VkPipelineShaderStageCreateInfo stageInfo{};
-    stageInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
-    stageInfo.stage = VK_SHADER_STAGE_COMPUTE_BIT;
-    stageInfo.module = shaderModule;
-    stageInfo.pName = "main";
+    VkPipelineShaderStageCreateInfo stage{VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO};
+    stage.stage = VK_SHADER_STAGE_COMPUTE_BIT;
+    stage.module = cs;
+    stage.pName = "main";
 
-    VkPipelineLayoutCreateInfo layoutInfo{};
-    layoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
-    layoutInfo.setLayoutCount = 1;
-    layoutInfo.pSetLayouts = &m_descriptorSetLayout;
-    layoutInfo.pushConstantRangeCount = 1;
-    VkPushConstantRange range{};
-    range.stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
-    range.offset = 0;
-    range.size = 3 * sizeof(uint32_t);
-    layoutInfo.pPushConstantRanges = &range;
+    VkPushConstantRange pcr{};
+    pcr.stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
+    pcr.offset = 0;
+    pcr.size = 3 * sizeof(uint32_t);
 
-    if (vkCreatePipelineLayout(m_device, &layoutInfo, nullptr, &m_pipelineLayout) != VK_SUCCESS)
-        throw std::runtime_error("failed to create pipeline layout");
+    VkPipelineLayoutCreateInfo pli{VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO};
+    pli.setLayoutCount = 1;
+    pli.pSetLayouts = &m_descriptorSetLayout;
+    pli.pushConstantRangeCount = 1;
+    pli.pPushConstantRanges = &pcr;
 
-    VkComputePipelineCreateInfo pipelineInfo{};
-    pipelineInfo.sType = VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO;
-    pipelineInfo.stage = stageInfo;
-    pipelineInfo.layout = m_pipelineLayout;
+    if (vkCreatePipelineLayout(m_device, &pli, nullptr, &m_pipelineLayout) != VK_SUCCESS)
+        throw std::runtime_error("vkCreatePipelineLayout failed");
 
-    if (vkCreateComputePipelines(m_device, VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, &m_pipeline) != VK_SUCCESS)
-        throw std::runtime_error("failed to create compute pipeline");
-    vkDestroyShaderModule(m_device, shaderModule, nullptr);
+    VkComputePipelineCreateInfo ci{VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO};
+    ci.stage = stage;
+    ci.layout = m_pipelineLayout;
+
+    if (vkCreateComputePipelines(m_device, VK_NULL_HANDLE, 1, &ci, nullptr, &m_pipeline) != VK_SUCCESS)
+        throw std::runtime_error("vkCreateComputePipelines failed");
+
+    vkDestroyShaderModule(m_device, cs, nullptr);
 }
 
 void MakeVulkan::createCommandPool() {
-    uint32_t queueFamilyIndex = 0;
-    uint32_t queueFamilyCount;
-    vkGetPhysicalDeviceQueueFamilyProperties(m_physicalDevice, &queueFamilyCount, nullptr);
-    std::vector<VkQueueFamilyProperties> props(queueFamilyCount);
-    vkGetPhysicalDeviceQueueFamilyProperties(m_physicalDevice, &queueFamilyCount, props.data());
-    for (uint32_t i = 0; i < queueFamilyCount; ++i) {
-        if (props[i].queueFlags & VK_QUEUE_COMPUTE_BIT) {
-            queueFamilyIndex = i;
-            break;
-        }
-    }
-    VkCommandPoolCreateInfo poolInfo{};
-    poolInfo.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
-    poolInfo.queueFamilyIndex = queueFamilyIndex;
-    if (vkCreateCommandPool(m_device, &poolInfo, nullptr, &m_commandPool) != VK_SUCCESS)
-        throw std::runtime_error("failed to create command pool");
+    VkCommandPoolCreateInfo pi{VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO};
+    pi.queueFamilyIndex = m_queueFamilyIndex;
+    pi.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
+    if (vkCreateCommandPool(m_device, &pi, nullptr, &m_commandPool) != VK_SUCCESS)
+        throw std::runtime_error("vkCreateCommandPool failed");
 }
 
 void MakeVulkan::createCommandBuffer() {
-    VkCommandBufferAllocateInfo allocInfo{};
-    allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
-    allocInfo.commandPool = m_commandPool;
-    allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
-    allocInfo.commandBufferCount = 1;
-    if (vkAllocateCommandBuffers(m_device, &allocInfo, &m_commandBuffer) != VK_SUCCESS)
-        throw std::runtime_error("failed to allocate command buffer");
+    VkCommandBufferAllocateInfo ai{VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO};
+    ai.commandPool = m_commandPool;
+    ai.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+    ai.commandBufferCount = 1;
+    if (vkAllocateCommandBuffers(m_device, &ai, &m_commandBuffer) != VK_SUCCESS)
+        throw std::runtime_error("vkAllocateCommandBuffers failed");
 }
 
 void MakeVulkan::runCommandBuffer() {
-    vkQueueWaitIdle(m_queue);
-    VkCommandBufferBeginInfo beginInfo{};
-    beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
-    vkBeginCommandBuffer(m_commandBuffer, &beginInfo);
+    // Descriptor pool for this one dispatch
+    VkDescriptorPoolSize ps{VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 3};
+    VkDescriptorPoolCreateInfo dpci{VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO};
+    dpci.poolSizeCount = 1;
+    dpci.pPoolSizes = &ps;
+    dpci.maxSets = 1;
+    VkDescriptorPool dpool{};
+    if (vkCreateDescriptorPool(m_device, &dpci, nullptr, &dpool) != VK_SUCCESS)
+        throw std::runtime_error("vkCreateDescriptorPool failed");
 
-    VkDescriptorPoolSize poolSize{};
-    poolSize.type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-    poolSize.descriptorCount = 3;
-    VkDescriptorPoolCreateInfo poolInfo{};
-    poolInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
-    poolInfo.maxSets = 1;
-    poolInfo.poolSizeCount = 1;
-    poolInfo.pPoolSizes = &poolSize;
-    VkDescriptorPool descriptorPool;
-    vkCreateDescriptorPool(m_device, &poolInfo, nullptr, &descriptorPool);
+    VkDescriptorSetAllocateInfo dsai{VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO};
+    dsai.descriptorPool = dpool;
+    dsai.descriptorSetCount = 1;
+    dsai.pSetLayouts = &m_descriptorSetLayout;
+    VkDescriptorSet dset{};
+    if (vkAllocateDescriptorSets(m_device, &dsai, &dset) != VK_SUCCESS)
+        throw std::runtime_error("vkAllocateDescriptorSets failed");
 
-    VkDescriptorSetAllocateInfo allocInfo{};
-    allocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
-    allocInfo.descriptorPool = descriptorPool;
-    allocInfo.descriptorSetCount = 1;
-    allocInfo.pSetLayouts = &m_descriptorSetLayout;
-    VkDescriptorSet descriptorSet;
-    vkAllocateDescriptorSets(m_device, &allocInfo, &descriptorSet);
+    VkDescriptorBufferInfo infos[3]{};
+    infos[0].buffer = m_bufferA; infos[0].range = VK_WHOLE_SIZE;
+    infos[1].buffer = m_bufferB; infos[1].range = VK_WHOLE_SIZE;
+    infos[2].buffer = m_bufferC; infos[2].range = VK_WHOLE_SIZE;
 
-    VkDescriptorBufferInfo bufferInfos[3]{};
-    bufferInfos[0].buffer = m_bufferA;
-    bufferInfos[0].offset = 0;
-    bufferInfos[0].range = VK_WHOLE_SIZE;
-    bufferInfos[1].buffer = m_bufferB;
-    bufferInfos[1].offset = 0;
-    bufferInfos[1].range = VK_WHOLE_SIZE;
-    bufferInfos[2].buffer = m_bufferC;
-    bufferInfos[2].offset = 0;
-    bufferInfos[2].range = VK_WHOLE_SIZE;
-
-    VkWriteDescriptorSet descriptorWrites[3]{};
-    for (int i = 0; i < 3; ++i) {
-        descriptorWrites[i].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-        descriptorWrites[i].dstSet = descriptorSet;
-        descriptorWrites[i].dstBinding = i;
-        descriptorWrites[i].dstArrayElement = 0;
-        descriptorWrites[i].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-        descriptorWrites[i].descriptorCount = 1;
-        descriptorWrites[i].pBufferInfo = &bufferInfos[i];
+    VkWriteDescriptorSet writes[3]{};
+    for (uint32_t i = 0; i < 3; ++i) {
+        writes[i].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+        writes[i].dstSet = dset;
+        writes[i].dstBinding = i;
+        writes[i].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+        writes[i].descriptorCount = 1;
+        writes[i].pBufferInfo = &infos[i];
     }
-    vkUpdateDescriptorSets(m_device, 3, descriptorWrites, 0, nullptr);
+    vkUpdateDescriptorSets(m_device, 3, writes, 0, nullptr);
+
+    // Record
+    VkCommandBufferBeginInfo bi{VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO};
+    if (vkBeginCommandBuffer(m_commandBuffer, &bi) != VK_SUCCESS)
+        throw std::runtime_error("vkBeginCommandBuffer failed");
 
     vkCmdBindPipeline(m_commandBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, m_pipeline);
-    vkCmdBindDescriptorSets(m_commandBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, m_pipelineLayout,
-                            0, 1, &descriptorSet, 0, nullptr);
+    vkCmdBindDescriptorSets(m_commandBuffer, VK_PIPELINE_BIND_POINT_COMPUTE,
+                            m_pipelineLayout, 0, 1, &dset, 0, nullptr);
 
-    uint32_t pushConsts[3] = {4, 4, 4};
+    struct { uint32_t M,N,P; } push{ mM, mN, mP };
     vkCmdPushConstants(m_commandBuffer, m_pipelineLayout, VK_SHADER_STAGE_COMPUTE_BIT,
-                       0, sizeof(pushConsts), pushConsts);
+                       0, sizeof(push), &push);
 
-    vkCmdDispatch(m_commandBuffer, 1, 1, 1);
+    const uint32_t groupsX = ceilDiv(mP, Lx);
+    const uint32_t groupsY = ceilDiv(mM, Ly);
+    vkCmdDispatch(m_commandBuffer, groupsX, groupsY, 1);
 
-    vkEndCommandBuffer(m_commandBuffer);
+    if (vkEndCommandBuffer(m_commandBuffer) != VK_SUCCESS)
+        throw std::runtime_error("vkEndCommandBuffer failed");
 
-    VkSubmitInfo submitInfo{};
-    submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
-    submitInfo.commandBufferCount = 1;
-    submitInfo.pCommandBuffers = &m_commandBuffer;
-    VkFence fence;
-    VkFenceCreateInfo fenceInfo{};
-    fenceInfo.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
-    vkCreateFence(m_device, &fenceInfo, nullptr, &fence);
-    vkQueueSubmit(m_queue, 1, &submitInfo, fence);
-    vkWaitForFences(m_device, 1, &fence, VK_TRUE, UINT64_MAX);
-    vkDestroyFence(m_device, fence, nullptr);
-    vkDestroyDescriptorPool(m_device, descriptorPool, nullptr);
+    // Submit + wait
+    VkFenceCreateInfo fci{VK_STRUCTURE_TYPE_FENCE_CREATE_INFO};
+    if (vkCreateFence(m_device, &fci, nullptr, &m_fence) != VK_SUCCESS)
+        throw std::runtime_error("vkCreateFence failed");
+
+    VkSubmitInfo si{VK_STRUCTURE_TYPE_SUBMIT_INFO};
+    si.commandBufferCount = 1;
+    si.pCommandBuffers = &m_commandBuffer;
+    if (vkQueueSubmit(m_queue, 1, &si, m_fence) != VK_SUCCESS)
+        throw std::runtime_error("vkQueueSubmit failed");
+    vkWaitForFences(m_device, 1, &m_fence, VK_TRUE, UINT64_MAX);
+
+    vkDestroyFence(m_device, m_fence, nullptr);
+    m_fence = VK_NULL_HANDLE;
+
+    vkDestroyDescriptorPool(m_device, dpool, nullptr);
 }
 
 void MakeVulkan::initVulkan() {
@@ -333,22 +458,14 @@ void MakeVulkan::initVulkan() {
     createCommandPool();
     createCommandBuffer();
 
-    createBuffer(m_A_size, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
-                 VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
-                 m_bufferA, m_memoryA);
-    createBuffer(m_B_size, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
-                 VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
-                 m_bufferB, m_memoryB);
-    createBuffer(m_A_size, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
-                 VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
-                 m_bufferC, m_memoryC);
-    void* data;
-    vkMapMemory(m_device, m_memoryA, 0, m_A_size, 0, &data);
-    memcpy(data, m_matA, m_A_size);
-    vkUnmapMemory(m_device, m_memoryA);
-    vkMapMemory(m_device, m_memoryB, 0, m_B_size, 0, &data);
-    memcpy(data, m_matB, m_B_size);
-    vkUnmapMemory(m_device, m_memoryB);
+    // Device-local buffers for A, B, C
+    createDeviceLocalBuffer(m_A_size, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, m_bufferA, m_memoryA);
+    createDeviceLocalBuffer(m_B_size, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, m_bufferB, m_memoryB);
+    createDeviceLocalBuffer(m_C_size, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, m_bufferC, m_memoryC);
+
+    // Upload A and B via staging
+    uploadWithStaging(m_matA, m_A_size, m_bufferA);
+    uploadWithStaging(m_matB, m_B_size, m_bufferB);
 }
 
 void MakeVulkan::cleanup() {
@@ -358,25 +475,30 @@ void MakeVulkan::cleanup() {
     vkFreeMemory(m_device, m_memoryB, nullptr);
     vkDestroyBuffer(m_device, m_bufferA, nullptr);
     vkFreeMemory(m_device, m_memoryA, nullptr);
-    vkDestroyCommandPool(m_device, m_commandPool, nullptr);
-    vkDestroyPipeline(m_device, m_pipeline, nullptr);
-    vkDestroyPipelineLayout(m_device, m_pipelineLayout, nullptr);
-    vkDestroyDescriptorSetLayout(m_device, m_descriptorSetLayout, nullptr);
-    vkDestroyDevice(m_device, nullptr);
-    vkDestroyInstance(m_instance, nullptr);
+
+    if (m_commandPool) vkDestroyCommandPool(m_device, m_commandPool, nullptr);
+    if (m_pipeline) vkDestroyPipeline(m_device, m_pipeline, nullptr);
+    if (m_pipelineLayout) vkDestroyPipelineLayout(m_device, m_pipelineLayout, nullptr);
+    if (m_descriptorSetLayout) vkDestroyDescriptorSetLayout(m_device, m_descriptorSetLayout, nullptr);
+    if (m_device) vkDestroyDevice(m_device, nullptr);
+    if (m_instance) vkDestroyInstance(m_instance, nullptr);
+
+    m_commandPool = VK_NULL_HANDLE;
+    m_pipeline = VK_NULL_HANDLE;
+    m_pipelineLayout = VK_NULL_HANDLE;
+    m_descriptorSetLayout = VK_NULL_HANDLE;
+    m_device = VK_NULL_HANDLE;
+    m_instance = VK_NULL_HANDLE;
 }
 
 void MakeVulkan::run() {
     initVulkan();
     runCommandBuffer();
-    float* result;
-    vkMapMemory(m_device, m_memoryC, 0, VK_WHOLE_SIZE, 0, reinterpret_cast<void**>(&result));
-    m_result = std::make_unique<float[]>(16);
-    
-    memcpy(m_result.get(), result, 64);
-    
 
+    // Read C back
+    const size_t elems = m_C_size / sizeof(float);
+    m_result = std::make_unique<float[]>(elems);
+    downloadWithStaging(m_bufferC, m_C_size, m_result.get());
 
-    vkUnmapMemory(m_device, m_memoryC);
     cleanup();
 }
