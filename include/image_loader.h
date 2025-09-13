@@ -7,7 +7,8 @@
 #include "stb_image.h"
 #include <iostream>
 
-struct ImGuiLoadedImage {
+struct ImGuiLoadedImage
+{
     VkImage image = VK_NULL_HANDLE;
     VkDeviceMemory memory = VK_NULL_HANDLE;
     VkImageView view = VK_NULL_HANDLE;
@@ -228,6 +229,43 @@ static bool LoadImGuiImage(const char* filename, ImGuiLoadedImage& out)
     memcpy(data, pixels, static_cast<size_t>(imageSize));
     vkUnmapMemory(g_Device, stagingBufferMemory);
     stbi_image_free(pixels);
+
+    createImage(texWidth, texHeight, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_TILING_OPTIMAL,
+                VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
+                VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, out.image, out.memory);
+
+    transitionImageLayout(out.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
+    copyBufferToImage(stagingBuffer, out.image, texWidth, texHeight);
+    transitionImageLayout(out.image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+
+    vkDestroyBuffer(g_Device, stagingBuffer, g_Allocator);
+    vkFreeMemory(g_Device, stagingBufferMemory, g_Allocator);
+
+    out.view = createImageView(out.image, VK_FORMAT_R8G8B8A8_SRGB);
+    out.sampler = createSampler();
+    out.descriptor = ImGui_ImplVulkan_AddTexture(out.sampler, out.view, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+    
+    return true;
+}
+
+
+static bool LoadImGuiImage(float* arr, int texWidth, int texHeight, int texChannels, ImGuiLoadedImage& out)
+{
+   
+    VkDeviceSize imageSize = texWidth * texHeight * 4;
+    // for (int i = 0; i < texWidth*texHeight; i++) arr[i] = (int)(arr[i]*255);
+
+    VkBuffer stagingBuffer;
+    VkDeviceMemory stagingBufferMemory;
+    createBuffer(imageSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+                 VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+                 stagingBuffer, stagingBufferMemory);
+
+    void* data;
+    vkMapMemory(g_Device, stagingBufferMemory, 0, imageSize, 0, &data);
+    memcpy(data, arr, static_cast<size_t>(imageSize));
+    vkUnmapMemory(g_Device, stagingBufferMemory);
+
 
     createImage(texWidth, texHeight, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_TILING_OPTIMAL,
                 VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,

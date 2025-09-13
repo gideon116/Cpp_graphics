@@ -6525,17 +6525,17 @@ static void DemoWindowTables()
     if (ImGui::TreeNode("Row height"))
     {
         HelpMarker(
-            "You can pass a 'min_row_height' to TableNextRow().\n\nRows are padded with 'style.CellPadding.y' on top and bottom, "
+            "You can pass a 'min_rom_k_height' to TableNextRow().\n\nRows are padded with 'style.CellPadding.y' on top and bottom, "
             "so effectively the minimum row height will always be >= 'style.CellPadding.y * 2.0f'.\n\n"
             "We cannot honor a _maximum_ row height as that would require a unique clipping rectangle per row.");
-        if (ImGui::BeginTable("table_row_height", 1, ImGuiTableFlags_Borders))
+        if (ImGui::BeginTable("table_rom_k_height", 1, ImGuiTableFlags_Borders))
         {
             for (int row = 0; row < 8; row++)
             {
-                float min_row_height = (float)(int)(TEXT_BASE_HEIGHT * 0.30f * row);
-                ImGui::TableNextRow(ImGuiTableRowFlags_None, min_row_height);
+                float min_rom_k_height = (float)(int)(TEXT_BASE_HEIGHT * 0.30f * row);
+                ImGui::TableNextRow(ImGuiTableRowFlags_None, min_rom_k_height);
                 ImGui::TableNextColumn();
-                ImGui::Text("min_row_height = %.2f", min_row_height);
+                ImGui::Text("min_rom_k_height = %.2f", min_rom_k_height);
             }
             ImGui::EndTable();
         }

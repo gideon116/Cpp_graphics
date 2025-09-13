@@ -28,7 +28,7 @@ class num_ptr_arr
                 ptr[index++] = i;
             }
         }
-        uint32_t tot_size() const
+        uint32_t size() const
         { 
             return (uint32_t)sizeof(T) * len; 
         

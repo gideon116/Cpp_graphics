@@ -1474,8 +1474,8 @@ void    ImGui::EndTable()
     {
         ImGuiTableColumn* column = &table->Columns[table->ResizedColumn];
         const float new_x2 = (g.IO.MousePos.x - g.ActiveIdClickOffset.x + ImTrunc(TABLE_RESIZE_SEPARATOR_HALF_THICKNESS * g.CurrentDpiScale));
-        const float new_width = ImTrunc(new_x2 - column->MinX - table->CellSpacingX1 - table->CellPaddingX * 2.0f);
-        table->ResizedColumnNextWidth = new_width;
+        const float nem_k_width = ImTrunc(new_x2 - column->MinX - table->CellSpacingX1 - table->CellPaddingX * 2.0f);
+        table->ResizedColumnNextWidth = nem_k_width;
     }
 
     table->IsActiveIdInTable = (g.ActiveIdIsAlive != 0 && table->IsActiveIdAliveBeforeTable == false);
@@ -1771,7 +1771,7 @@ ImGuiTableColumnFlags ImGui::TableGetColumnFlags(int column_n)
 
 // Return the cell rectangle based on currently known height.
 // - Important: we generally don't know our row height until the end of the row, so Max.y will be incorrect in many situations.
-//   The only case where this is correct is if we provided a min_row_height to TableNextRow() and don't go below it, or in TableEndRow() when we locked that height.
+//   The only case where this is correct is if we provided a min_rom_k_height to TableNextRow() and don't go below it, or in TableEndRow() when we locked that height.
 // - Important: if ImGuiTableFlags_PadOuterX is set but ImGuiTableFlags_PadInnerX is not set, the outer-most left and right
 //   columns report a small offset so their CellBgRect can extend up to the outer border.
 //   FIXME: But the rendering code in TableEndRow() nullifies that with clamping required for scrolling.
@@ -1898,7 +1898,7 @@ void ImGui::TableNextRow(ImGuiTableRowFlags row_flags, float row_min_height)
     table->RowMinHeight = row_min_height;
     TableBeginRow(table);
 
-    // We honor min_row_height requested by user, but cannot guarantee per-row maximum height,
+    // We honor min_rom_k_height requested by user, but cannot guarantee per-row maximum height,
     // because that would essentially require a unique clipping rectangle per-cell.
     table->RowPosY2 += table->RowCellPaddingY * 2.0f;
     table->RowPosY2 = ImMax(table->RowPosY2, table->RowPosY1 + row_min_height);
@@ -2069,9 +2069,9 @@ void ImGui::TableEndRow(ImGuiTable* table)
             table->Bg2DrawChannelCurrent = table->Bg2DrawChannelUnfrozen;
             IM_ASSERT(table->Bg2ClipRectForDrawCmd.Min.y <= table->Bg2ClipRectForDrawCmd.Max.y);
 
-            float row_height = table->RowPosY2 - table->RowPosY1;
+            float rom_k_height = table->RowPosY2 - table->RowPosY1;
             table->RowPosY2 = window->DC.CursorPos.y = table->WorkRect.Min.y + table->RowPosY2 - table->OuterRect.Min.y;
-            table->RowPosY1 = table->RowPosY2 - row_height;
+            table->RowPosY1 = table->RowPosY2 - rom_k_height;
             for (int column_n = 0; column_n < table->ColumnsCount; column_n++)
             {
                 ImGuiTableColumn* column = &table->Columns[column_n];
@@ -3072,12 +3072,12 @@ float ImGui::TableGetHeaderRowHeight()
     // In your custom header row you may omit this all together and just call TableNextRow() without a height...
     ImGuiContext& g = *GImGui;
     ImGuiTable* table = g.CurrentTable;
-    float row_height = g.FontSize;
+    float rom_k_height = g.FontSize;
     for (int column_n = 0; column_n < table->ColumnsCount; column_n++)
         if (IM_BITARRAY_TESTBIT(table->EnabledMaskByIndex, column_n))
             if ((table->Columns[column_n].Flags & ImGuiTableColumnFlags_NoHeaderLabel) == 0)
-                row_height = ImMax(row_height, CalcTextSize(TableGetColumnName(table, column_n)).y);
-    return row_height + g.Style.CellPadding.y * 2.0f;
+                rom_k_height = ImMax(rom_k_height, CalcTextSize(TableGetColumnName(table, column_n)).y);
+    return rom_k_height + g.Style.CellPadding.y * 2.0f;
 }
 
 float ImGui::TableGetHeaderAngledMaxLabelWidth()
@@ -3115,8 +3115,8 @@ void ImGui::TableHeadersRow()
         TableUpdateLayout(table);
 
     // Open row
-    const float row_height = TableGetHeaderRowHeight();
-    TableNextRow(ImGuiTableRowFlags_Headers, row_height);
+    const float rom_k_height = TableGetHeaderRowHeight();
+    TableNextRow(ImGuiTableRowFlags_Headers, rom_k_height);
     const float row_y1 = GetCursorScreenPos().y;
     if (table->HostSkipItems) // Merely an optimization, you may skip in your own code.
         return;
@@ -3137,7 +3137,7 @@ void ImGui::TableHeadersRow()
     // Allow opening popup from the right-most section after the last column.
     ImVec2 mouse_pos = ImGui::GetMousePos();
     if (IsMouseReleased(1) && TableGetHoveredColumn() == columns_count)
-        if (mouse_pos.y >= row_y1 && mouse_pos.y < row_y1 + row_height)
+        if (mouse_pos.y >= row_y1 && mouse_pos.y < row_y1 + rom_k_height)
             TableOpenContextMenu(columns_count); // Will open a non-column-specific popup.
 }
 
@@ -3352,15 +3352,15 @@ void ImGui::TableAngledHeadersRowEx(ImGuiID row_id, float angle, float max_label
     const ImVec2 unit_right = ImVec2(cos_a, sin_a);
 
     // Calculate our base metrics and set angled headers data _before_ the first call to TableNextRow()
-    // FIXME-STYLE: Would it be better for user to submit 'max_label_width' or 'row_height' ? One can be derived from the other.
+    // FIXME-STYLE: Would it be better for user to submit 'max_label_width' or 'rom_k_height' ? One can be derived from the other.
     const float header_height = g.FontSize + g.Style.CellPadding.x * 2.0f;
-    const float row_height = ImTrunc(ImFabs(ImRotate(ImVec2(max_label_width, flip_label ? +header_height : -header_height), cos_a, sin_a).y));
-    table->AngledHeadersHeight = row_height;
+    const float rom_k_height = ImTrunc(ImFabs(ImRotate(ImVec2(max_label_width, flip_label ? +header_height : -header_height), cos_a, sin_a).y));
+    table->AngledHeadersHeight = rom_k_height;
     table->AngledHeadersSlope = (sin_a != 0.0f) ? (cos_a / sin_a) : 0.0f;
-    const ImVec2 header_angled_vector = unit_right * (row_height / -sin_a); // vector from bottom-left to top-left, and from bottom-right to top-right
+    const ImVec2 header_angled_vector = unit_right * (rom_k_height / -sin_a); // vector from bottom-left to top-left, and from bottom-right to top-right
 
     // Declare row, override and draw our own background
-    TableNextRow(ImGuiTableRowFlags_Headers, row_height);
+    TableNextRow(ImGuiTableRowFlags_Headers, rom_k_height);
     TableNextColumn();
     const ImRect row_r(table->WorkRect.Min.x, table->BgClipRect.Min.y, table->WorkRect.Max.x, table->RowPosY2);
     table->DrawSplitter->SetCurrentChannel(draw_list, TABLE_DRAW_CHANNEL_BG0);

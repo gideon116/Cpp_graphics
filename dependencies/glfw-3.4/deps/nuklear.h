@@ -2016,7 +2016,7 @@ NK_API void nk_window_show_if(struct nk_context*, const char *name, enum nk_show
 /// value if zero. <br /><br />
 ///
 /// If you manually want to change the minimum row height then
-/// use nk_layout_set_min_row_height, and use nk_layout_reset_min_row_height to
+/// use nk_layout_set_min_rom_k_height, and use nk_layout_reset_min_rom_k_height to
 /// reset it back to be derived from font height. <br /><br />
 ///
 /// Also if you change the font in nuklear it will automatically change the minimum
@@ -2037,7 +2037,7 @@ NK_API void nk_window_show_if(struct nk_context*, const char *name, enum nk_show
 ///     the size of each widget dynamically by formula:
 ///
 ///     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~c
-///     widget_width = (window_width - padding - spacing) * (1/colum_count)
+///     widget_width = (windom_k_width - padding - spacing) * (1/colum_count)
 ///     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 ///
 ///     Just like all other layouting APIs if you define more widget than columns this
@@ -2230,8 +2230,8 @@ NK_API void nk_window_show_if(struct nk_context*, const char *name, enum nk_show
 /// #### Reference
 /// Function                                | Description
 /// ----------------------------------------|------------------------------------
-/// nk_layout_set_min_row_height            | Set the currently used minimum row height to a specified value
-/// nk_layout_reset_min_row_height          | Resets the currently used minimum row height to font height
+/// nk_layout_set_min_rom_k_height            | Set the currently used minimum row height to a specified value
+/// nk_layout_reset_min_rom_k_height          | Resets the currently used minimum row height to font height
 /// nk_layout_widget_bounds                 | Calculates current width a static layout row can fit inside a window
 /// nk_layout_ratio_from_pixel              | Utility functions to calculate window ratio from pixel size
 //
@@ -2258,14 +2258,14 @@ NK_API void nk_window_show_if(struct nk_context*, const char *name, enum nk_show
 /// nk_layout_space_rect_to_screen          | Converts rectangle from nk_layout_space coordinate space into screen space
 /// nk_layout_space_rect_to_local           | Converts rectangle from screen space into nk_layout_space coordinates
 */
-/*/// #### nk_layout_set_min_row_height
+/*/// #### nk_layout_set_min_rom_k_height
 /// Sets the currently used minimum row height.
 /// !!! WARNING
 ///     The passed height needs to include both your preferred row height
 ///     as well as padding. No internal padding is added.
 ///
 /// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~c
-/// void nk_layout_set_min_row_height(struct nk_context*, float height);
+/// void nk_layout_set_min_rom_k_height(struct nk_context*, float height);
 /// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 ///
 /// Parameter   | Description
@@ -2273,18 +2273,18 @@ NK_API void nk_window_show_if(struct nk_context*, const char *name, enum nk_show
 /// __ctx__     | Must point to an previously initialized `nk_context` struct after call `nk_begin_xxx`
 /// __height__  | New minimum row height to be used for auto generating the row height
 */
-NK_API void nk_layout_set_min_row_height(struct nk_context*, float height);
-/*/// #### nk_layout_reset_min_row_height
+NK_API void nk_layout_set_min_rom_k_height(struct nk_context*, float height);
+/*/// #### nk_layout_reset_min_rom_k_height
 /// Reset the currently used minimum row height back to `font_height + text_padding + padding`
 /// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~c
-/// void nk_layout_reset_min_row_height(struct nk_context*);
+/// void nk_layout_reset_min_rom_k_height(struct nk_context*);
 /// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 ///
 /// Parameter   | Description
 /// ------------|-----------------------------------------------------------
 /// __ctx__     | Must point to an previously initialized `nk_context` struct after call `nk_begin_xxx`
 */
-NK_API void nk_layout_reset_min_row_height(struct nk_context*);
+NK_API void nk_layout_reset_min_rom_k_height(struct nk_context*);
 /*/// #### nk_layout_widget_bounds
 /// Returns the width of the next row allocate by one of the layouting functions
 /// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~c
@@ -2346,7 +2346,7 @@ NK_API void nk_layout_row_static(struct nk_context *ctx, float height, int item_
 /*/// #### nk_layout_row_begin
 /// Starts a new dynamic or fixed row with given height and columns.
 /// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~c
-/// void nk_layout_row_begin(struct nk_context *ctx, enum nk_layout_format fmt, float row_height, int cols);
+/// void nk_layout_row_begin(struct nk_context *ctx, enum nk_layout_format fmt, float rom_k_height, int cols);
 /// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 ///
 /// Parameter   | Description
@@ -2356,7 +2356,7 @@ NK_API void nk_layout_row_static(struct nk_context *ctx, float height, int item_
 /// __height__  | holds height of each widget in row or zero for auto layouting
 /// __columns__ | Number of widget inside row
 */
-NK_API void nk_layout_row_begin(struct nk_context *ctx, enum nk_layout_format fmt, float row_height, int cols);
+NK_API void nk_layout_row_begin(struct nk_context *ctx, enum nk_layout_format fmt, float rom_k_height, int cols);
 /*/// #### nk_layout_row_push
 /// Specifies either window ratio or width of a single column
 /// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~c
@@ -2397,7 +2397,7 @@ NK_API void nk_layout_row(struct nk_context*, enum nk_layout_format, float heigh
 /*/// #### nk_layout_row_template_begin
 /// Begins the row template declaration
 /// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~c
-/// void nk_layout_row_template_begin(struct nk_context*, float row_height);
+/// void nk_layout_row_template_begin(struct nk_context*, float rom_k_height);
 /// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 ///
 /// Parameter   | Description
@@ -2405,7 +2405,7 @@ NK_API void nk_layout_row(struct nk_context*, enum nk_layout_format, float heigh
 /// __ctx__     | Must point to an previously initialized `nk_context` struct after call `nk_begin_xxx`
 /// __height__  | Holds height of each widget in row or zero for auto layouting
 */
-NK_API void nk_layout_row_template_begin(struct nk_context*, float row_height);
+NK_API void nk_layout_row_template_begin(struct nk_context*, float rom_k_height);
 /*/// #### nk_layout_row_template_push_dynamic
 /// Adds a dynamic column that dynamically grows and can go to zero if not enough space
 /// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~c
@@ -3032,7 +3032,7 @@ struct nk_list_view {
     nk_uint *scroll_pointer;
     nk_uint scroll_value;
 };
-NK_API int nk_list_view_begin(struct nk_context*, struct nk_list_view *out, const char *id, nk_flags, int row_height, int row_count);
+NK_API int nk_list_view_begin(struct nk_context*, struct nk_list_view *out, const char *id, nk_flags, int rom_k_height, int row_count);
 NK_API void nk_list_view_end(struct nk_list_view*);
 /* =============================================================================
  *
@@ -5194,7 +5194,7 @@ struct nk_style_window {
     float group_border;
     float tooltip_border;
     float popup_border;
-    float min_row_height_padding;
+    float min_rom_k_height_padding;
 
     float rounding;
     struct nk_vec2 spacing;
@@ -5821,7 +5821,7 @@ NK_LIB char *nk_itoa(char *s, long n);
 NK_LIB int nk_string_float_limit(char *string, int prec);
 NK_LIB char *nk_dtoa(char *s, double n);
 NK_LIB int nk_text_clamp(const struct nk_user_font *font, const char *text, int text_len, float space, int *glyphs, float *text_width, nk_rune *sep_list, int sep_count);
-NK_LIB struct nk_vec2 nk_text_calculate_text_bounds(const struct nk_user_font *font, const char *begin, int byte_len, float row_height, const char **remaining, struct nk_vec2 *out_offset, int *glyphs, int op);
+NK_LIB struct nk_vec2 nk_text_calculate_text_bounds(const struct nk_user_font *font, const char *begin, int byte_len, float rom_k_height, const char **remaining, struct nk_vec2 *out_offset, int *glyphs, int op);
 #ifdef NK_INCLUDE_STANDARD_VARARGS
 NK_LIB int nk_strfmt(char *buf, int buf_size, const char *fmt, va_list args);
 #endif
@@ -5855,9 +5855,9 @@ NK_LIB void nk_build(struct nk_context *ctx);
 
 /* text editor */
 NK_LIB void nk_textedit_clear_state(struct nk_text_edit *state, enum nk_text_edit_type type, nk_plugin_filter filter);
-NK_LIB void nk_textedit_click(struct nk_text_edit *state, float x, float y, const struct nk_user_font *font, float row_height);
-NK_LIB void nk_textedit_drag(struct nk_text_edit *state, float x, float y, const struct nk_user_font *font, float row_height);
-NK_LIB void nk_textedit_key(struct nk_text_edit *state, enum nk_keys key, int shift_mod, const struct nk_user_font *font, float row_height);
+NK_LIB void nk_textedit_click(struct nk_text_edit *state, float x, float y, const struct nk_user_font *font, float rom_k_height);
+NK_LIB void nk_textedit_drag(struct nk_text_edit *state, float x, float y, const struct nk_user_font *font, float rom_k_height);
+NK_LIB void nk_textedit_key(struct nk_text_edit *state, enum nk_keys key, int shift_mod, const struct nk_user_font *font, float rom_k_height);
 
 /* window */
 enum nk_window_insert_location {
@@ -5969,7 +5969,7 @@ NK_LIB int nk_do_selectable(nk_flags *state, struct nk_command_buffer *out, stru
 NK_LIB int nk_do_selectable_image(nk_flags *state, struct nk_command_buffer *out, struct nk_rect bounds, const char *str, int len, nk_flags align, int *value, const struct nk_image *img, const struct nk_style_selectable *style, const struct nk_input *in, const struct nk_user_font *font);
 
 /* edit */
-NK_LIB void nk_edit_draw_text(struct nk_command_buffer *out, const struct nk_style_edit *style, float pos_x, float pos_y, float x_offset, const char *text, int byte_len, float row_height, const struct nk_user_font *font, struct nk_color background, struct nk_color foreground, int is_selected);
+NK_LIB void nk_edit_draw_text(struct nk_command_buffer *out, const struct nk_style_edit *style, float pos_x, float pos_y, float x_offset, const char *text, int byte_len, float rom_k_height, const struct nk_user_font *font, struct nk_color background, struct nk_color foreground, int is_selected);
 NK_LIB nk_flags nk_do_edit(nk_flags *state, struct nk_command_buffer *out, struct nk_rect bounds, nk_flags flags, nk_plugin_filter filter, struct nk_text_edit *edit, const struct nk_style_edit *style, struct nk_input *in, const struct nk_user_font *font);
 
 /* color-picker */
@@ -7376,10 +7376,10 @@ nk_text_clamp(const struct nk_user_font *font, const char *text,
 }
 NK_LIB struct nk_vec2
 nk_text_calculate_text_bounds(const struct nk_user_font *font,
-    const char *begin, int byte_len, float row_height, const char **remaining,
+    const char *begin, int byte_len, float rom_k_height, const char **remaining,
     struct nk_vec2 *out_offset, int *glyphs, int op)
 {
-    float line_height = row_height;
+    float line_height = rom_k_height;
     struct nk_vec2 text_size = nk_vec2(0,0);
     float line_width = 0.0f;
 
@@ -7388,7 +7388,7 @@ nk_text_calculate_text_bounds(const struct nk_user_font *font,
     nk_rune unicode = 0;
     int text_len = 0;
     if (!begin || byte_len <= 0 || !font)
-        return nk_vec2(0,row_height);
+        return nk_vec2(0,rom_k_height);
 
     glyph_len = nk_utf_decode(begin, &unicode, byte_len);
     if (!glyph_len) return text_size;
@@ -14803,7 +14803,7 @@ nk_style_from_table(struct nk_context *ctx, const struct nk_color *table)
     win->tooltip_border = 1.0f;
     win->popup_border = 1.0f;
     win->border = 2.0f;
-    win->min_row_height_padding = 8;
+    win->min_rom_k_height_padding = 8;
 
     win->padding = nk_vec2(4,4);
     win->group_padding = nk_vec2(4,4);
@@ -14824,7 +14824,7 @@ nk_style_set_font(struct nk_context *ctx, const struct nk_user_font *font)
     style->font = font;
     ctx->stacks.fonts.head = 0;
     if (ctx->current)
-        nk_layout_reset_min_row_height(ctx);
+        nk_layout_reset_min_rom_k_height(ctx);
 }
 NK_API int
 nk_style_push_font(struct nk_context *ctx, const struct nk_user_font *font)
@@ -15685,7 +15685,7 @@ nk_panel_begin(struct nk_context *ctx, const char *title, enum nk_panel_type pan
     layout->max_x = 0;
     layout->header_height = 0;
     layout->footer_height = 0;
-    nk_layout_reset_min_row_height(ctx);
+    nk_layout_reset_min_rom_k_height(ctx);
     layout->row.index = 0;
     layout->row.columns = 0;
     layout->row.ratio = 0;
@@ -17581,7 +17581,7 @@ nk_menu_end(struct nk_context *ctx)
  *
  * ===============================================================*/
 NK_API void
-nk_layout_set_min_row_height(struct nk_context *ctx, float height)
+nk_layout_set_min_rom_k_height(struct nk_context *ctx, float height)
 {
     struct nk_window *win;
     struct nk_panel *layout;
@@ -17597,7 +17597,7 @@ nk_layout_set_min_row_height(struct nk_context *ctx, float height)
     layout->row.min_height = height;
 }
 NK_API void
-nk_layout_reset_min_row_height(struct nk_context *ctx)
+nk_layout_reset_min_rom_k_height(struct nk_context *ctx)
 {
     struct nk_window *win;
     struct nk_panel *layout;
@@ -17612,7 +17612,7 @@ nk_layout_reset_min_row_height(struct nk_context *ctx)
     layout = win->layout;
     layout->row.min_height = ctx->style.font->height;
     layout->row.min_height += ctx->style.text.padding.y*2;
-    layout->row.min_height += ctx->style.window.min_row_height_padding*2;
+    layout->row.min_height += ctx->style.window.min_rom_k_height_padding*2;
 }
 NK_LIB float
 nk_layout_row_calculate_usable_space(const struct nk_style *style, enum nk_panel_type type,
@@ -17731,7 +17731,7 @@ nk_layout_row_static(struct nk_context *ctx, float height, int item_width, int c
 }
 NK_API void
 nk_layout_row_begin(struct nk_context *ctx, enum nk_layout_format fmt,
-    float row_height, int cols)
+    float rom_k_height, int cols)
 {
     struct nk_window *win;
     struct nk_panel *layout;
@@ -17744,7 +17744,7 @@ nk_layout_row_begin(struct nk_context *ctx, enum nk_layout_format fmt,
 
     win = ctx->current;
     layout = win->layout;
-    nk_panel_layout(ctx, win, row_height, cols);
+    nk_panel_layout(ctx, win, rom_k_height, cols);
     if (fmt == NK_DYNAMIC)
         layout->row.type = NK_LAYOUT_DYNAMIC_ROW;
     else layout->row.type = NK_LAYOUT_STATIC_ROW;
@@ -18145,8 +18145,8 @@ nk_panel_alloc_row(const struct nk_context *ctx, struct nk_window *win)
 {
     struct nk_panel *layout = win->layout;
     struct nk_vec2 spacing = ctx->style.window.spacing;
-    const float row_height = layout->row.height - spacing.y;
-    nk_panel_layout(ctx, win, row_height, layout->row.columns);
+    const float rom_k_height = layout->row.height - spacing.y;
+    nk_panel_layout(ctx, win, rom_k_height, layout->row.columns);
 }
 NK_LIB void
 nk_layout_widget_space(struct nk_rect *bounds, const struct nk_context *ctx,
@@ -18357,7 +18357,7 @@ nk_tree_state_base(struct nk_context *ctx, enum nk_tree_type type,
     const struct nk_input *in;
     const struct nk_style_button *button;
     enum nk_symbol_type symbol;
-    float row_height;
+    float rom_k_height;
 
     struct nk_vec2 item_spacing;
     struct nk_rect header = {0,0,0,0};
@@ -18381,10 +18381,10 @@ nk_tree_state_base(struct nk_context *ctx, enum nk_tree_type type,
     item_spacing = style->window.spacing;
 
     /* calculate header bounds and draw background */
-    row_height = style->font->height + 2 * style->tab.padding.y;
-    nk_layout_set_min_row_height(ctx, row_height);
-    nk_layout_row_dynamic(ctx, row_height, 1);
-    nk_layout_reset_min_row_height(ctx);
+    rom_k_height = style->font->height + 2 * style->tab.padding.y;
+    nk_layout_set_min_rom_k_height(ctx, rom_k_height);
+    nk_layout_row_dynamic(ctx, rom_k_height, 1);
+    nk_layout_reset_min_rom_k_height(ctx);
 
     widget_state = nk_widget(&header, ctx);
     if (type == NK_TREE_TAB) {
@@ -18538,7 +18538,7 @@ nk_tree_element_image_push_hashed_base(struct nk_context *ctx, enum nk_tree_type
     const struct nk_input *in;
     const struct nk_style_button *button;
     enum nk_symbol_type symbol;
-    float row_height;
+    float rom_k_height;
     struct nk_vec2 padding;
 
     int text_len;
@@ -18567,10 +18567,10 @@ nk_tree_element_image_push_hashed_base(struct nk_context *ctx, enum nk_tree_type
     padding = style->selectable.padding;
 
     /* calculate header bounds and draw background */
-    row_height = style->font->height + 2 * style->tab.padding.y;
-    nk_layout_set_min_row_height(ctx, row_height);
-    nk_layout_row_dynamic(ctx, row_height, 1);
-    nk_layout_reset_min_row_height(ctx);
+    rom_k_height = style->font->height + 2 * style->tab.padding.y;
+    nk_layout_set_min_rom_k_height(ctx, rom_k_height);
+    nk_layout_row_dynamic(ctx, rom_k_height, 1);
+    nk_layout_reset_min_rom_k_height(ctx);
 
     widget_state = nk_widget(&header, ctx);
     if (type == NK_TREE_TAB) {
@@ -18927,7 +18927,7 @@ nk_group_set_scroll(struct nk_context *ctx, const char *id, nk_uint x_offset, nk
  * ===============================================================*/
 NK_API int
 nk_list_view_begin(struct nk_context *ctx, struct nk_list_view *view,
-    const char *title, nk_flags flags, int row_height, int row_count)
+    const char *title, nk_flags flags, int rom_k_height, int row_count)
 {
     int title_len;
     nk_hash title_hash;
@@ -18948,7 +18948,7 @@ nk_list_view_begin(struct nk_context *ctx, struct nk_list_view *view,
     win = ctx->current;
     style = &ctx->style;
     item_spacing = style->window.spacing;
-    row_height += NK_MAX(0, (int)item_spacing.y);
+    rom_k_height += NK_MAX(0, (int)item_spacing.y);
 
     /* find persistent list view scrollbar offset */
     title_len = (int)nk_strlen(title);
@@ -18971,9 +18971,9 @@ nk_list_view_begin(struct nk_context *ctx, struct nk_list_view *view,
     win = ctx->current;
     layout = win->layout;
 
-    view->total_height = row_height * NK_MAX(row_count,1);
-    view->begin = (int)NK_MAX(((float)view->scroll_value / (float)row_height), 0.0f);
-    view->count = (int)NK_MAX(nk_iceilf((layout->clip.h)/(float)row_height),0);
+    view->total_height = rom_k_height * NK_MAX(row_count,1);
+    view->begin = (int)NK_MAX(((float)view->scroll_value / (float)rom_k_height), 0.0f);
+    view->count = (int)NK_MAX(nk_iceilf((layout->clip.h)/(float)rom_k_height),0);
     view->count = NK_MIN(view->count, row_count - view->begin);
     view->end = view->begin + view->count;
     view->ctx = ctx;
@@ -21730,7 +21730,7 @@ nk_textedit_get_width(const struct nk_text_edit *edit, int line_start, int char_
 }
 NK_INTERN void
 nk_textedit_layout_row(struct nk_text_edit_row *r, struct nk_text_edit *edit,
-    int line_start_id, float row_height, const struct nk_user_font *font)
+    int line_start_id, float rom_k_height, const struct nk_user_font *font)
 {
     int l;
     int glyphs = 0;
@@ -21740,7 +21740,7 @@ nk_textedit_layout_row(struct nk_text_edit_row *r, struct nk_text_edit *edit,
     const char *end = nk_str_get_const(&edit->string) + len;
     const char *text = nk_str_at_const(&edit->string, line_start_id, &unicode, &l);
     const struct nk_vec2 size = nk_text_calculate_text_bounds(font,
-        text, (int)(end - text), row_height, &remaining, 0, &glyphs, NK_STOP_ON_NEW_LINE);
+        text, (int)(end - text), rom_k_height, &remaining, 0, &glyphs, NK_STOP_ON_NEW_LINE);
 
     r->x0 = 0.0f;
     r->x1 = size.x;
@@ -21751,7 +21751,7 @@ nk_textedit_layout_row(struct nk_text_edit_row *r, struct nk_text_edit *edit,
 }
 NK_INTERN int
 nk_textedit_locate_coord(struct nk_text_edit *edit, float x, float y,
-    const struct nk_user_font *font, float row_height)
+    const struct nk_user_font *font, float rom_k_height)
 {
     struct nk_text_edit_row r;
     int n = edit->string.len;
@@ -21764,7 +21764,7 @@ nk_textedit_locate_coord(struct nk_text_edit *edit, float x, float y,
 
     /* search rows to find one that straddles 'y' */
     while (i < n) {
-        nk_textedit_layout_row(&r, edit, i, row_height, font);
+        nk_textedit_layout_row(&r, edit, i, rom_k_height, font);
         if (r.num_chars <= 0)
             return n;
 
@@ -21811,29 +21811,29 @@ nk_textedit_locate_coord(struct nk_text_edit *edit, float x, float y,
 }
 NK_LIB void
 nk_textedit_click(struct nk_text_edit *state, float x, float y,
-    const struct nk_user_font *font, float row_height)
+    const struct nk_user_font *font, float rom_k_height)
 {
     /* API click: on mouse down, move the cursor to the clicked location,
      * and reset the selection */
-    state->cursor = nk_textedit_locate_coord(state, x, y, font, row_height);
+    state->cursor = nk_textedit_locate_coord(state, x, y, font, rom_k_height);
     state->select_start = state->cursor;
     state->select_end = state->cursor;
     state->has_preferred_x = 0;
 }
 NK_LIB void
 nk_textedit_drag(struct nk_text_edit *state, float x, float y,
-    const struct nk_user_font *font, float row_height)
+    const struct nk_user_font *font, float rom_k_height)
 {
     /* API drag: on mouse drag, move the cursor and selection endpoint
      * to the clicked location */
-    int p = nk_textedit_locate_coord(state, x, y, font, row_height);
+    int p = nk_textedit_locate_coord(state, x, y, font, rom_k_height);
     if (state->select_start == state->select_end)
         state->select_start = state->cursor;
     state->cursor = state->select_end = p;
 }
 NK_INTERN void
 nk_textedit_find_charpos(struct nk_text_find *find, struct nk_text_edit *state,
-    int n, int single_line, const struct nk_user_font *font, float row_height)
+    int n, int single_line, const struct nk_user_font *font, float rom_k_height)
 {
     /* find the x/y location of a character, and remember info about the previous
      * row in case we get a move-up event (for page up, we'll have to rescan) */
@@ -21846,7 +21846,7 @@ nk_textedit_find_charpos(struct nk_text_find *find, struct nk_text_edit *state,
     if (n == z) {
         /* if it's at the end, then find the last line -- simpler than trying to
         explicitly handle this case in the regular code */
-        nk_textedit_layout_row(&r, state, 0, row_height, font);
+        nk_textedit_layout_row(&r, state, 0, rom_k_height, font);
         if (single_line) {
             find->first_char = 0;
             find->length = z;
@@ -21854,7 +21854,7 @@ nk_textedit_find_charpos(struct nk_text_find *find, struct nk_text_edit *state,
             while (i < z) {
                 prev_start = i;
                 i += r.num_chars;
-                nk_textedit_layout_row(&r, state, i, row_height, font);
+                nk_textedit_layout_row(&r, state, i, rom_k_height, font);
             }
 
             find->first_char = i;
@@ -21871,7 +21871,7 @@ nk_textedit_find_charpos(struct nk_text_find *find, struct nk_text_edit *state,
     find->y = 0;
 
     for(;;) {
-        nk_textedit_layout_row(&r, state, i, row_height, font);
+        nk_textedit_layout_row(&r, state, i, rom_k_height, font);
         if (n < i + r.num_chars) break;
         prev_start = i;
         i += r.num_chars;
@@ -22094,7 +22094,7 @@ nk_textedit_text(struct nk_text_edit *state, const char *text, int total_len)
 }
 NK_LIB void
 nk_textedit_key(struct nk_text_edit *state, enum nk_keys key, int shift_mod,
-    const struct nk_user_font *font, float row_height)
+    const struct nk_user_font *font, float rom_k_height)
 {
 retry:
     switch (key)
@@ -22226,7 +22226,7 @@ retry:
         /* compute current position of cursor point */
         nk_textedit_clamp(state);
         nk_textedit_find_charpos(&find, state, state->cursor, state->single_line,
-            font, row_height);
+            font, rom_k_height);
 
         /* now find character position down a row */
         if (find.length)
@@ -22236,7 +22236,7 @@ retry:
             int start = find.first_char + find.length;
 
             state->cursor = start;
-            nk_textedit_layout_row(&row, state, state->cursor, row_height, font);
+            nk_textedit_layout_row(&row, state, state->cursor, rom_k_height, font);
             x = row.x0;
 
             for (i=0; i < row.num_chars && x < row.x1; ++i) {
@@ -22274,7 +22274,7 @@ retry:
          /* compute current position of cursor point */
          nk_textedit_clamp(state);
          nk_textedit_find_charpos(&find, state, state->cursor, state->single_line,
-                font, row_height);
+                font, rom_k_height);
 
          /* can only go up if there's a previous row */
          if (find.prev_first != find.first_char) {
@@ -22283,7 +22283,7 @@ retry:
             float goal_x = state->has_preferred_x ? state->preferred_x : find.x;
 
             state->cursor = find.prev_first;
-            nk_textedit_layout_row(&row, state, state->cursor, row_height, font);
+            nk_textedit_layout_row(&row, state, state->cursor, rom_k_height, font);
             x = row.x0;
 
             for (i=0; i < row.num_chars && x < row.x1; ++i) {
@@ -22360,7 +22360,7 @@ retry:
             if (state->string.len && state->cursor == state->string.len)
                 --state->cursor;
             nk_textedit_find_charpos(&find, state,state->cursor, state->single_line,
-                font, row_height);
+                font, rom_k_height);
             state->cursor = state->select_end = find.first_char;
             state->has_preferred_x = 0;
         } else {
@@ -22370,7 +22370,7 @@ retry:
             nk_textedit_clamp(state);
             nk_textedit_move_to_first(state);
             nk_textedit_find_charpos(&find, state, state->cursor, state->single_line,
-                font, row_height);
+                font, rom_k_height);
             state->cursor = find.first_char;
             state->has_preferred_x = 0;
         }
@@ -22382,7 +22382,7 @@ retry:
             nk_textedit_clamp(state);
             nk_textedit_prep_selection_at_cursor(state);
             nk_textedit_find_charpos(&find, state, state->cursor, state->single_line,
-                font, row_height);
+                font, rom_k_height);
             state->has_preferred_x = 0;
             state->cursor = find.first_char + find.length;
             if (find.length > 0 && nk_str_rune_at(&state->string, state->cursor-1) == '\n')
@@ -22393,7 +22393,7 @@ retry:
             nk_textedit_clamp(state);
             nk_textedit_move_to_first(state);
             nk_textedit_find_charpos(&find, state, state->cursor, state->single_line,
-                font, row_height);
+                font, rom_k_height);
 
             state->has_preferred_x = 0;
             state->cursor = find.first_char + find.length;
@@ -22790,7 +22790,7 @@ nk_filter_binary(const struct nk_text_edit *box, nk_rune unicode)
 NK_LIB void
 nk_edit_draw_text(struct nk_command_buffer *out,
     const struct nk_style_edit *style, float pos_x, float pos_y,
-    float x_offset, const char *text, int byte_len, float row_height,
+    float x_offset, const char *text, int byte_len, float rom_k_height,
     const struct nk_user_font *font, struct nk_color background,
     struct nk_color foreground, int is_selected)
 {
@@ -22821,7 +22821,7 @@ nk_edit_draw_text(struct nk_command_buffer *out,
             /* new line separator so draw previous line */
             struct nk_rect label;
             label.y = pos_y + line_offset;
-            label.h = row_height;
+            label.h = rom_k_height;
             label.w = line_width;
             label.x = pos_x;
             if (!line_count)
@@ -22836,7 +22836,7 @@ nk_edit_draw_text(struct nk_command_buffer *out,
             line_count++;
             line_width = 0;
             line = text + text_len;
-            line_offset += row_height;
+            line_offset += rom_k_height;
             glyph_len = nk_utf_decode(text + text_len, &unicode, (int)(byte_len-text_len));
             continue;
         }
@@ -22855,7 +22855,7 @@ nk_edit_draw_text(struct nk_command_buffer *out,
         /* draw last line */
         struct nk_rect label;
         label.y = pos_y + line_offset;
-        label.h = row_height;
+        label.h = rom_k_height;
         label.w = line_width;
         label.x = pos_x;
         if (!line_count)
@@ -22875,7 +22875,7 @@ nk_do_edit(nk_flags *state, struct nk_command_buffer *out,
 {
     struct nk_rect area;
     nk_flags ret = 0;
-    float row_height;
+    float rom_k_height;
     char prev_state = 0;
     char is_hovered = 0;
     char select_all = 0;
@@ -22896,7 +22896,7 @@ nk_do_edit(nk_flags *state, struct nk_command_buffer *out,
     area.h = bounds.h - (2.0f * style->padding.y + 2 * style->border);
     if (flags & NK_EDIT_MULTILINE)
         area.w = NK_MAX(0, area.w - style->scrollbar_size.x);
-    row_height = (flags & NK_EDIT_MULTILINE)? font->height + style->row_padding: area.h;
+    rom_k_height = (flags & NK_EDIT_MULTILINE)? font->height + style->row_padding: area.h;
 
     /* calculate clipping rectangle */
     old_clip = out->clip;
@@ -22944,15 +22944,15 @@ nk_do_edit(nk_flags *state, struct nk_command_buffer *out,
             nk_textedit_select_all(edit);
         } else if (is_hovered && in->mouse.buttons[NK_BUTTON_LEFT].down &&
             in->mouse.buttons[NK_BUTTON_LEFT].clicked) {
-            nk_textedit_click(edit, mouse_x, mouse_y, font, row_height);
+            nk_textedit_click(edit, mouse_x, mouse_y, font, rom_k_height);
         } else if (is_hovered && in->mouse.buttons[NK_BUTTON_LEFT].down &&
             (in->mouse.delta.x != 0.0f || in->mouse.delta.y != 0.0f)) {
-            nk_textedit_drag(edit, mouse_x, mouse_y, font, row_height);
+            nk_textedit_drag(edit, mouse_x, mouse_y, font, rom_k_height);
             cursor_follow = nk_true;
         } else if (is_hovered && in->mouse.buttons[NK_BUTTON_RIGHT].clicked &&
             in->mouse.buttons[NK_BUTTON_RIGHT].down) {
-            nk_textedit_key(edit, NK_KEY_TEXT_WORD_LEFT, nk_false, font, row_height);
-            nk_textedit_key(edit, NK_KEY_TEXT_WORD_RIGHT, nk_true, font, row_height);
+            nk_textedit_key(edit, NK_KEY_TEXT_WORD_LEFT, nk_false, font, rom_k_height);
+            nk_textedit_key(edit, NK_KEY_TEXT_WORD_RIGHT, nk_true, font, rom_k_height);
             cursor_follow = nk_true;
         }
 
@@ -22961,7 +22961,7 @@ nk_do_edit(nk_flags *state, struct nk_command_buffer *out,
         for (i = 0; i < NK_KEY_MAX; ++i) {
             if (i == NK_KEY_ENTER || i == NK_KEY_TAB) continue; /* special case */
             if (nk_input_is_key_pressed(in, (enum nk_keys)i)) {
-                nk_textedit_key(edit, (enum nk_keys)i, shift_mod, font, row_height);
+                nk_textedit_key(edit, (enum nk_keys)i, shift_mod, font, rom_k_height);
                 cursor_follow = nk_true;
             }
         }
@@ -23097,9 +23097,9 @@ nk_do_edit(nk_flags *state, struct nk_command_buffer *out,
                     const char *remaining;
 
                     /* calculate 2d position */
-                    cursor_pos.y = (float)(total_lines-1) * row_height;
+                    cursor_pos.y = (float)(total_lines-1) * rom_k_height;
                     row_size = nk_text_calculate_text_bounds(font, text+row_begin,
-                                text_len-row_begin, row_height, &remaining,
+                                text_len-row_begin, rom_k_height, &remaining,
                                 &out_offset, &glyph_offset, NK_STOP_ON_NEW_LINE);
                     cursor_pos.x = row_size.x;
                     cursor_ptr = text + text_len;
@@ -23115,9 +23115,9 @@ nk_do_edit(nk_flags *state, struct nk_command_buffer *out,
                     const char *remaining;
 
                     /* calculate 2d position */
-                    selection_offset_start.y = (float)(NK_MAX(total_lines-1,0)) * row_height;
+                    selection_offset_start.y = (float)(NK_MAX(total_lines-1,0)) * rom_k_height;
                     row_size = nk_text_calculate_text_bounds(font, text+row_begin,
-                                text_len-row_begin, row_height, &remaining,
+                                text_len-row_begin, rom_k_height, &remaining,
                                 &out_offset, &glyph_offset, NK_STOP_ON_NEW_LINE);
                     selection_offset_start.x = row_size.x;
                     select_begin_ptr = text + text_len;
@@ -23133,9 +23133,9 @@ nk_do_edit(nk_flags *state, struct nk_command_buffer *out,
                     const char *remaining;
 
                     /* calculate 2d position */
-                    selection_offset_end.y = (float)(total_lines-1) * row_height;
+                    selection_offset_end.y = (float)(total_lines-1) * rom_k_height;
                     row_size = nk_text_calculate_text_bounds(font, text+row_begin,
-                                text_len-row_begin, row_height, &remaining,
+                                text_len-row_begin, rom_k_height, &remaining,
                                 &out_offset, &glyph_offset, NK_STOP_ON_NEW_LINE);
                     selection_offset_end.x = row_size.x;
                     select_end_ptr = text + text_len;
@@ -23161,12 +23161,12 @@ nk_do_edit(nk_flags *state, struct nk_command_buffer *out,
                     text+text_len, glyph_len);
                 continue;
             }
-            text_size.y = (float)total_lines * row_height;
+            text_size.y = (float)total_lines * rom_k_height;
 
             /* handle case when cursor is at end of text buffer */
             if (!cursor_ptr && edit->cursor == edit->string.len) {
                 cursor_pos.x = line_width;
-                cursor_pos.y = text_size.y - row_height;
+                cursor_pos.y = text_size.y - rom_k_height;
             }
         }
         {
@@ -23186,9 +23186,9 @@ nk_do_edit(nk_flags *state, struct nk_command_buffer *out,
                 if (flags & NK_EDIT_MULTILINE) {
                     /* vertical scroll */
                     if (cursor_pos.y < edit->scrollbar.y)
-                        edit->scrollbar.y = NK_MAX(0.0f, cursor_pos.y - row_height);
+                        edit->scrollbar.y = NK_MAX(0.0f, cursor_pos.y - rom_k_height);
                     if (cursor_pos.y >= edit->scrollbar.y + area.h)
-                        edit->scrollbar.y = edit->scrollbar.y + row_height;
+                        edit->scrollbar.y = edit->scrollbar.y + rom_k_height;
                 } else edit->scrollbar.y = 0;
             }
 
@@ -23259,7 +23259,7 @@ nk_do_edit(nk_flags *state, struct nk_command_buffer *out,
             const char *begin = nk_str_get_const(&edit->string);
             int l = nk_str_len_char(&edit->string);
             nk_edit_draw_text(out, style, area.x - edit->scrollbar.x,
-                area.y - edit->scrollbar.y, 0, begin, l, row_height, font,
+                area.y - edit->scrollbar.y, 0, begin, l, rom_k_height, font,
                 background_color, text_color, nk_false);
         } else {
             /* edit has selection so draw 1-3 text chunks */
@@ -23269,7 +23269,7 @@ nk_do_edit(nk_flags *state, struct nk_command_buffer *out,
                 NK_ASSERT(select_begin_ptr);
                 nk_edit_draw_text(out, style, area.x - edit->scrollbar.x,
                     area.y - edit->scrollbar.y, 0, begin, (int)(select_begin_ptr - begin),
-                    row_height, font, background_color, text_color, nk_false);
+                    rom_k_height, font, background_color, text_color, nk_false);
             }
             if (edit->select_start != edit->select_end) {
                 /* draw selected text */
@@ -23283,7 +23283,7 @@ nk_do_edit(nk_flags *state, struct nk_command_buffer *out,
                     area.y + selection_offset_start.y - edit->scrollbar.y,
                     selection_offset_start.x,
                     select_begin_ptr, (int)(select_end_ptr - select_begin_ptr),
-                    row_height, font, sel_background_color, sel_text_color, nk_true);
+                    rom_k_height, font, sel_background_color, sel_text_color, nk_true);
             }
             if ((edit->select_start != edit->select_end &&
                 selection_end < edit->string.len))
@@ -23297,7 +23297,7 @@ nk_do_edit(nk_flags *state, struct nk_command_buffer *out,
                     area.x - edit->scrollbar.x,
                     area.y + selection_offset_end.y - edit->scrollbar.y,
                     selection_offset_end.x,
-                    begin, (int)(end - begin), row_height, font,
+                    begin, (int)(end - begin), rom_k_height, font,
                     background_color, text_color, nk_true);
             }
         }
@@ -23312,7 +23312,7 @@ nk_do_edit(nk_flags *state, struct nk_command_buffer *out,
                 cursor.w = style->cursor_size;
                 cursor.h = font->height;
                 cursor.x = area.x + cursor_pos.x - edit->scrollbar.x;
-                cursor.y = area.y + cursor_pos.y + row_height/2.0f - cursor.h/2.0f;
+                cursor.y = area.y + cursor_pos.y + rom_k_height/2.0f - cursor.h/2.0f;
                 cursor.y -= edit->scrollbar.y;
                 nk_fill_rect(out, cursor, 0, cursor_color);
             } else {
@@ -23328,7 +23328,7 @@ nk_do_edit(nk_flags *state, struct nk_command_buffer *out,
                 label.x = area.x + cursor_pos.x - edit->scrollbar.x;
                 label.y = area.y + cursor_pos.y - edit->scrollbar.y;
                 label.w = font->width(font->userdata, font->height, cursor_ptr, glyph_len);
-                label.h = row_height;
+                label.h = rom_k_height;
 
                 txt.padding = nk_vec2(0,0);
                 txt.background = cursor_color;;
@@ -23360,7 +23360,7 @@ nk_do_edit(nk_flags *state, struct nk_command_buffer *out,
             background_color = nk_rgba(0,0,0,0);
         else background_color = background->data.color;
         nk_edit_draw_text(out, style, area.x - edit->scrollbar.x,
-            area.y - edit->scrollbar.y, 0, begin, l, row_height, font,
+            area.y - edit->scrollbar.y, 0, begin, l, rom_k_height, font,
             background_color, text_color, nk_false);
     }
     nk_push_scissor(out, old_clip);}
@@ -25529,8 +25529,8 @@ nk_tooltipfv(struct nk_context *ctx, const char *fmt, va_list args)
 /// - 2017/06/08 (1.40.0) - BREAKING CHANGE: while not directly API breaking it will change
 ///                        how layouting works. From now there will be an internal minimum
 ///                        row height derived from font height. If you need a row smaller than
-///                        that you can directly set it by `nk_layout_set_min_row_height` and
-///                        reset the value back by calling `nk_layout_reset_min_row_height.
+///                        that you can directly set it by `nk_layout_set_min_rom_k_height` and
+///                        reset the value back by calling `nk_layout_reset_min_rom_k_height.
 /// - 2017/06/08 (1.39.1) - Fixed property text edit handling bug caused by past `nk_widget` fix.
 /// - 2017/06/08 (1.39.0) - Added function to retrieve window space without calling a `nk_layout_xxx` function.
 /// - 2017/06/06 (1.38.5) - Fixed `nk_convert` return flag for command buffer.
