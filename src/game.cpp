@@ -18,6 +18,7 @@
 #include "layers.h"
 #include "model.h"
 #include <implot.h>
+#include <mutex>
 
 
 static int n_test = 100;
@@ -28,7 +29,6 @@ static Tensor train_l = load_mnist_labels("../../learnn/mnist/train-labels-idx1-
 
 static Tensor test_im = load_mnist_images("../../learnn/mnist/t10k-images-idx3-ubyte", n_test);
 static Tensor test_l = load_mnist_labels("../../learnn/mnist/t10k-labels-idx1-ubyte", n_test);
-
 
 constexpr int WINDOW = 10;
 const char* layer_names[6] = {"Linear", "Conv2D", "MaxPool2D", "HMA", "RelU", "Flatten"};
@@ -41,10 +41,10 @@ struct LayerGUIParams
     ImVec2 size;
     ImVec2 pos;
     ImU32 color;
-    int units, k_h, k_w, rand, axis, num_heads;
-    bool use_bias = false, training = false, use_gpu = false, keep_dims = false, use_mask = false, self_attention = false;
+    int units = 16, k_h = 3, k_w = 3, rand = 3, axis = 0, num_heads = 1;
+    bool use_bias = true, training = true, use_gpu = false, keep_dims = false, use_mask = false, self_attention = false;
     std::unique_ptr<Layer> nn;
-
+    
     const char* layer_name;
 
     void radio_options(const char* names[], std::initializer_list<bool*> settings)
@@ -127,6 +127,7 @@ class LayerGUI
 
         size_t b_h=25, b_w=175, b_xi=40, b_yi=100;
         size_t t_border=100, b_border=650, l_border=280, r_border=480;
+        ImU32 line_color = IM_COL32(0, 0, 0, 255);
 
         std::vector<LayerGUIParams> gui_layers;
         LayerGUIParams a{ImVec2(b_w, b_h), ImVec2(b_xi, b_yi), IM_COL32(255, 100, 100, 200), "Linear"};
@@ -140,6 +141,7 @@ class LayerGUI
         
         size_t added = 650;
         bool toadd = true;
+        
 
         void reset() 
         {
@@ -151,18 +153,16 @@ class LayerGUI
 
         void draw(ImDrawList* draw_list, LayerGUIParams& object, const float custom_scale)
         {
-       
             draw_list->AddRectFilled(object.pos, ImVec2(object.pos.x + object.size.x, object.pos.y + object.size.y), object.color);
             draw_list->AddRect(object.pos, ImVec2(object.pos.x + object.size.x, object.pos.y + object.size.y), IM_COL32(0, 0, 0, 255));
             draw_list->AddText(ImVec2(object.pos.x + object.size.x*0.1, object.pos.y + object.size.y*0.1), IM_COL32(0, 0, 0, 255), object.layer_name);
-        
         }
 
         bool dragging(const LayerGUIParams& object)
         {
             ImGui::SetCursorScreenPos(object.pos);
             ImGui::InvisibleButton(object.layer_name, object.size);
-            return ImGui::IsItemActive() && ImGui::IsMouseDragging;
+            return ImGui::IsItemActive() && ImGui::IsMouseDragging(ImGuiMouseButton_Left);
         }
 
         void add_LayerGUI(const LayerGUIParams& object, bool& toadd)
@@ -193,7 +193,6 @@ class LayerGUI
                     add_LayerGUI(*i, toadd);
                     dragged = true;
                 }
-                
             }
             
             if (!dragged && !gui_layers.empty())
@@ -220,13 +219,13 @@ class LayerGUI
             }
             
             // square where the LayerGUIs are placed
-            draw_list->AddRect(ImVec2(l_border, t_border), ImVec2(r_border, b_border), a.color);
-            draw_list->AddRect(ImVec2(r_border*1.2, t_border*4.5), ImVec2(r_border*2.5, b_border), a.color);
+            draw_list->AddRect(ImVec2(l_border, t_border), ImVec2(r_border, b_border), line_color);
+            draw_list->AddRect(ImVec2(r_border*1.2, t_border*4.5), ImVec2(r_border*2.5, b_border), line_color);
 
             // separator
             // TODO : *0.3 is hard coded, change this
-            draw_list->AddLine(ImVec2(r_border*0.5, 0), ImVec2(r_border*0.5, displaysize.y), a.color);
-            draw_list->AddLine(ImVec2(r_border*1.1, 0), ImVec2(r_border*1.1, displaysize.y), a.color);
+            draw_list->AddLine(ImVec2(r_border*0.5, 0), ImVec2(r_border*0.5, displaysize.y), line_color);
+            draw_list->AddLine(ImVec2(r_border*1.1, 0), ImVec2(r_border*1.1, displaysize.y), line_color);
 
             // dragging the gui_layers
             for (auto it = gui_layers.begin(); it != gui_layers.end(); )
@@ -264,9 +263,7 @@ class LayerGUI
             }
             
         }
-
 };
-
 
 class PhyBox
 {
@@ -409,20 +406,34 @@ int main(int, char**)
     auto [window, err, wd] = init;
 
     
-    ImVec4 clear_color = ImVec4(0.12f, 0.18f, 0.12f, 1.00f);
+    ImVec4 clear_color = ImVec4(0.6f, 0.6f, 0.6f, 1.0f);
 
     // PLayerGUI bob(100.0, 100.0, 0.05);
     // bob.loadTex();
     // PhyBox l;
 
     LayerGUI layer_gui;
-    float lr = 0.123f;
+    float lr = 0.05f;
     std::unique_ptr<Model> model;
     std::thread training_thread;
     bool training = false;
+    int epochs = 10;
+    int mini_batch_size = 0;
     std::vector<Layer*> network;
     std::vector<float> loss_hist;
     std::vector<float> val_loss_hist;
+
+    ImGuiLoadedImage m_tex;
+    ImGuiLoadedImage m_tex_2;
+
+    std::mutex m_;
+    
+    float *x_data = nullptr, *y_data = nullptr, *val_y_data = nullptr;
+    int data_size = 0;
+
+    LoadImGuiImage(test_im.m_tensor, 28, 28, 1, m_tex);
+    LoadImGuiImage(test_im.m_tensor + 28 * 28, 28, 28, 1, m_tex_2);
+    bool display_test = false;
 
     while (!glfwWindowShouldClose(window))
     {
@@ -448,7 +459,7 @@ int main(int, char**)
         ImGui_ImplVulkan_NewFrame();
         ImGui_ImplGlfw_NewFrame();
         ImGui::NewFrame();
-
+#if 1
         {
             ImVec2 display_size = ImGui::GetIO().DisplaySize;
             
@@ -464,14 +475,30 @@ int main(int, char**)
             layer_gui.make(draw_list, display_size, custom_scale);
             ImGui::PopFont();
 
-            ImGuiIO& io = ImGui::GetIO();
-            if (ImGui::IsMousePosValid())
-                ImGui::Text("Mouse pos: (%g, %g)", io.MousePos.x, io.MousePos.y);
-    
-            ImGui::SetCursorScreenPos(ImVec2(40, 650-120));
             
+
+            ImGui::SetCursorScreenPos(ImVec2(40, 650-240));
             ImGui::SetNextItemWidth(150.0f);
-            ImGui::SliderFloat("", &lr, 0.0f, 1.0f, "%.4f", ImGuiSliderFlags_Logarithmic);
+            ImGui::Text("Mini Batch Size");
+            ImGui::SetNextItemWidth(150.0f);
+            ImGui::SetCursorScreenPos(ImVec2(40, 650-220));
+            ImGui::SliderInt("##Mini Batch Size", &mini_batch_size, 0, 10000, "%d", ImGuiSliderFlags_Logarithmic);
+
+            ImGui::SetCursorScreenPos(ImVec2(40, 650-180));
+            ImGui::SetNextItemWidth(150.0f);
+            ImGui::Text("Epochs");
+            ImGui::SetNextItemWidth(150.0f);
+            ImGui::SetCursorScreenPos(ImVec2(40, 650-160));
+            ImGui::SliderInt("##Epochs", &epochs, 0, 10000, "%d", ImGuiSliderFlags_Logarithmic);
+
+            
+
+            ImGui::SetCursorScreenPos(ImVec2(40, 650-120));
+            ImGui::SetNextItemWidth(150.0f);
+            ImGui::Text("Learning Rate");
+            ImGui::SetNextItemWidth(150.0f);
+            ImGui::SetCursorScreenPos(ImVec2(40, 650-100));
+            ImGui::SliderFloat("##Learning Rate", &lr, 0.0f, 1.0f, "%.4f", ImGuiSliderFlags_Logarithmic);
 
             ImGui::SetCursorScreenPos(ImVec2(40, 650-40));
             if (ImGui::Button("Begin Training", ImVec2(150, 40)))
@@ -488,14 +515,30 @@ int main(int, char**)
                     training = true;
                     model = std::make_unique<Model>(network);
 
-                    training_thread = std::thread([&](){
+                    training_thread = std::thread([&]()
+                    {
+                        m_.lock();
+                        y_data = nullptr;
+                        val_y_data = nullptr;
+                        data_size = 0;
+
                         loss_hist.clear();
                         val_loss_hist.clear();
-                        model->fit(train_l, train_im, test_l, test_im, 10, lr, 0, &loss_hist, &val_loss_hist);
+                        m_.unlock();
+                        
+                        model->fit(train_l, train_im, test_l, test_im, epochs, lr, mini_batch_size, &loss_hist, &val_loss_hist, &m_);
+                        
                         training = false;
+                        
+                        Tensor pred = model->predict(test_im);  
+                        display_test = true;
+
                     });
                 }
             }
+            
+            
+            
             
             float l_min=10000.0f, l_max=0.0f;
             std::vector<float> xs;
@@ -512,30 +555,39 @@ int main(int, char**)
             ImGui::SetCursorScreenPos(ImVec2(580, 100));
             ImVec2 plot_size(620, 300);
 
-            float *x_data = nullptr, *y_data = nullptr, *val_y_data = nullptr;
-            int data_size = 0;
+            m_.lock();
 
-            if (!loss_hist.empty())
-            {
-                x_data = xs.data();
-                y_data = loss_hist.data();
-                val_y_data = val_loss_hist.data();
-                data_size = (int)loss_hist.size();
-            }
+            x_data = xs.data();
+            y_data = loss_hist.data();
+            val_y_data = val_loss_hist.data();
+            data_size = (int)loss_hist.size();
+
 
             if (ImPlot::BeginPlot("Losses", plot_size))
             {
                 ImPlot::SetupAxes("epochs", "loss");
 
                 if (!loss_hist.empty())
+                {
                     ImPlot::SetupAxisLimits(ImAxis_X1, 0, x_data[data_size-1], ImPlotCond_Always);
-
-                ImPlot::SetupAxisLimits(ImAxis_Y1, l_min, l_max, ImPlotCond_Always);
-                ImPlot::PlotLine("Training Loss", x_data, y_data, data_size);
-                ImPlot::PlotLine("Validation Loss", x_data, val_y_data, data_size);
-                ImPlot::SetNextMarkerStyle(ImPlotMarker_Circle);
+                    ImPlot::SetupAxisLimits(ImAxis_Y1, l_min, l_max, ImPlotCond_Always);
+                    ImPlot::PlotLine("Training Loss", x_data, y_data, data_size);
+                    ImPlot::PlotLine("Validation Loss", x_data, val_y_data, data_size);
+                    ImPlot::SetNextMarkerStyle(ImPlotMarker_Circle);
+                }
+                
                 ImPlot::EndPlot();
             }
+            m_.unlock();
+            
+
+            if (display_test)
+            {
+                draw_list->AddImage((ImTextureID)m_tex.descriptor, ImVec2(580, 425), ImVec2(780, 625), ImVec2(0, 0), ImVec2(1, 1), IM_COL32(0,0,0,255));
+                draw_list->AddImage((ImTextureID)m_tex_2.descriptor, ImVec2(580 + 200, 425), ImVec2(780 + 200, 625), ImVec2(0, 0), ImVec2(1, 1), IM_COL32(0,0,0,255));
+            }
+            
+            
 
             ImGui::End();
 
@@ -545,12 +597,14 @@ int main(int, char**)
             // ImGui::SetNextWindowPos({0,0});
             // ImGui::SetNextWindowSize(disp);
 
-            ImGui::Begin("##overlay", nullptr);
-            ImDrawList* draw_list = ImGui::GetWindowDrawList();
+            // ImGui::Begin("##overlay", nullptr);
+            // ImDrawList* draw_list = ImGui::GetWindowDrawList();
+            
 
-            ImGui::End();
+            // ImGui::End();
         }
-#if 0    
+#endif
+#if 0
         {
 
             ImVec2 disp = ImGui::GetIO().DisplaySize;
